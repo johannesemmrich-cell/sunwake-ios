@@ -1,19 +1,20 @@
 import SwiftUI
 
+private struct SlotID: Identifiable { let id: Int }
+
 struct AppLayoutConfigView: View {
     @EnvironmentObject private var appState: AppState
 
-    // Local copies for the pickers (so order is enforced unique)
     @State private var slot0: AppTab = .today
     @State private var slot1: AppTab = .library
     @State private var slot2: AppTab = .chat
     @State private var slot3: AppTab = .settings
+    @State private var editingSlot: SlotID? = nil
 
     var body: some View {
         ScrollView {
             VStack(spacing: 28) {
                 phonePreview
-                tabPositionsSection
                 accentColorSection
                 tabIconColorsSection
             }
@@ -24,17 +25,42 @@ struct AppLayoutConfigView: View {
         .navigationTitle("App-Layout")
         .navigationBarTitleDisplayMode(.large)
         .onAppear { loadSlots() }
+        .sheet(item: $editingSlot) { slot in
+            TabPickerSheet(
+                currentTab: currentSlots[slot.id],
+                onSelect: { newTab in
+                    let slots = [slot0, slot1, slot2, slot3]
+                    let index = slot.id
+                    withAnimation(.spring(duration: 0.2)) {
+                        if let existingIndex = slots.firstIndex(of: newTab), existingIndex != index {
+                            setSlot(existingIndex, to: slots[index])
+                        }
+                        setSlot(index, to: newTab)
+                        appState.tabOrder = [slot0, slot1, slot2, slot3]
+                    }
+                    editingSlot = nil
+                }
+            )
+            .presentationDetents([.fraction(0.45)])
+            .presentationDragIndicator(.visible)
+            .presentationCornerRadius(24)
+        }
     }
 
     // MARK: — Phone preview
 
     private var phonePreview: some View {
         VStack(spacing: 0) {
-            Text("Vorschau")
-                .font(LumioTypography.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.bottom, 10)
+            HStack {
+                Text("Vorschau")
+                    .font(LumioTypography.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Text("Tippe auf einen Tab")
+                    .font(LumioTypography.caption)
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(.bottom, 12)
 
             ZStack(alignment: .bottom) {
                 // Phone frame
@@ -43,20 +69,19 @@ struct AppLayoutConfigView: View {
                     .frame(width: 200, height: 360)
                     .shadow(color: .black.opacity(0.08), radius: 16, y: 6)
 
-                // Screen clip
+                // Screen
                 RoundedRectangle(cornerRadius: 34, style: .continuous)
                     .fill(Color(uiColor: .systemBackground))
                     .frame(width: 188, height: 352)
 
-                // Inner content (simplified)
                 VStack(spacing: 0) {
-                    // Notch / Dynamic Island
+                    // Dynamic Island
                     Capsule()
                         .fill(Color.primary.opacity(0.85))
                         .frame(width: 60, height: 10)
                         .padding(.top, 10)
 
-                    // Content area
+                    // Content placeholders
                     VStack(spacing: 6) {
                         RoundedRectangle(cornerRadius: 8)
                             .fill(Color.secondary.opacity(0.08))
@@ -68,23 +93,20 @@ struct AppLayoutConfigView: View {
                             .fill(Color.secondary.opacity(0.06))
                             .frame(height: 20)
                             .padding(.trailing, 40)
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(Color.secondary.opacity(0.05))
+                            .frame(height: 20)
+                            .padding(.trailing, 20)
                     }
                     .padding(.horizontal, 16)
                     .padding(.top, 16)
 
                     Spacer()
 
-                    // Tab bar mockup
+                    // Interactive tab bar
                     HStack(spacing: 0) {
-                        ForEach(currentSlots, id: \.self) { tab in
-                            VStack(spacing: 3) {
-                                Image(systemName: tab.icon)
-                                    .font(.system(size: 17, weight: .medium))
-                                Text(tab.shortLabel)
-                                    .font(.system(size: 7, weight: .medium))
-                            }
-                            .foregroundStyle(appState.iconColor(for: tab))
-                            .frame(maxWidth: .infinity)
+                        ForEach(0..<4, id: \.self) { index in
+                            tabSlotButton(index: index)
                         }
                     }
                     .padding(.vertical, 8)
@@ -92,7 +114,12 @@ struct AppLayoutConfigView: View {
                     .background(
                         Rectangle()
                             .fill(.ultraThinMaterial)
-                            .overlay(Rectangle().fill(Color.secondary.opacity(0.1)).frame(height: 0.5), alignment: .top)
+                            .overlay(
+                                Rectangle()
+                                    .fill(Color.secondary.opacity(0.1))
+                                    .frame(height: 0.5),
+                                alignment: .top
+                            )
                     )
                 }
                 .frame(width: 188, height: 352)
@@ -101,43 +128,30 @@ struct AppLayoutConfigView: View {
         }
     }
 
-    // MARK: — Tab positions
-
-    private var tabPositionsSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            sectionHeader("Tab-Positionen", icon: "rectangle.grid.1x2")
-
-            VStack(spacing: 1) {
-                ForEach(0..<4, id: \.self) { index in
-                    tabPositionRow(index: index)
-                }
-            }
-            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-        }
-    }
-
     @ViewBuilder
-    private func tabPositionRow(index: Int) -> some View {
-        let binding = slotBinding(index)
-        HStack(spacing: 14) {
-            Text("Position \(index + 1)")
-                .font(LumioTypography.callout)
-                .foregroundStyle(.secondary)
-                .frame(width: 90, alignment: .leading)
-
-            Spacer()
-
-            Picker("Position \(index + 1)", selection: binding) {
-                ForEach(AppTab.allCases, id: \.self) { tab in
-                    Label(tab.fullLabel, systemImage: tab.icon).tag(tab)
+    private func tabSlotButton(index: Int) -> some View {
+        let tab = currentSlots[index]
+        let color = appState.iconColor(for: tab)
+        Button {
+            editingSlot = SlotID(id: index)
+        } label: {
+            VStack(spacing: 3) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 7, style: .continuous)
+                        .fill(color.opacity(0.15))
+                        .frame(width: 30, height: 20)
+                    Image(systemName: tab.icon)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(color)
                 }
+                Text(tab.shortLabel)
+                    .font(.system(size: 6, weight: .medium))
+                    .foregroundStyle(color.opacity(0.85))
             }
-            .labelsHidden()
-            .tint(appState.iconColor(for: binding.wrappedValue))
+            .frame(maxWidth: .infinity)
+            .contentShape(Rectangle())
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .background(Color(uiColor: .secondarySystemBackground))
+        .buttonStyle(.plain)
     }
 
     // MARK: — Accent color
@@ -145,7 +159,6 @@ struct AppLayoutConfigView: View {
     private var accentColorSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             sectionHeader("Akzentfarbe", icon: "paintpalette.fill")
-
             ColorPaletteGrid(selectedHex: $appState.accentColorHex)
         }
     }
@@ -223,29 +236,6 @@ struct AppLayoutConfigView: View {
 
     private var currentSlots: [AppTab] { [slot0, slot1, slot2, slot3] }
 
-    private func slotBinding(_ index: Int) -> Binding<AppTab> {
-        Binding(
-            get: {
-                switch index {
-                case 0: return slot0
-                case 1: return slot1
-                case 2: return slot2
-                default: return slot3
-                }
-            },
-            set: { newTab in
-                // Swap if newTab already exists in another slot
-                let slots = [slot0, slot1, slot2, slot3]
-                if let existingIndex = slots.firstIndex(of: newTab), existingIndex != index {
-                    let displaced = slots[index]
-                    setSlot(existingIndex, to: displaced)
-                }
-                setSlot(index, to: newTab)
-                appState.tabOrder = [slot0, slot1, slot2, slot3]
-            }
-        )
-    }
-
     private func setSlot(_ index: Int, to tab: AppTab) {
         switch index {
         case 0: slot0 = tab
@@ -270,6 +260,66 @@ struct AppLayoutConfigView: View {
             .foregroundStyle(.secondary)
             .textCase(.uppercase)
             .kerning(0.5)
+    }
+}
+
+// MARK: — Tab Picker Sheet
+
+private struct TabPickerSheet: View {
+    @EnvironmentObject private var appState: AppState
+    let currentTab: AppTab
+    let onSelect: (AppTab) -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Text("Tab auswählen")
+                .font(LumioTypography.headline.weight(.semibold))
+                .padding(.top, 24)
+                .padding(.bottom, 16)
+
+            VStack(spacing: 1) {
+                ForEach(AppTab.allCases, id: \.self) { tab in
+                    Button {
+                        onSelect(tab)
+                    } label: {
+                        HStack(spacing: 14) {
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                    .fill(tab == currentTab
+                                          ? appState.iconColor(for: tab)
+                                          : Color.secondary.opacity(0.12))
+                                    .frame(width: 34, height: 34)
+                                Image(systemName: tab.icon)
+                                    .font(.body.weight(.medium))
+                                    .foregroundStyle(tab == currentTab ? .white : .primary)
+                            }
+
+                            Text(tab.fullLabel)
+                                .font(LumioTypography.body)
+                                .foregroundStyle(.primary)
+
+                            Spacer()
+
+                            if tab == currentTab {
+                                Image(systemName: "checkmark")
+                                    .font(.body.weight(.semibold))
+                                    .foregroundStyle(appState.iconColor(for: tab))
+                            }
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
+                        .background(Color(uiColor: .secondarySystemBackground))
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .padding(.horizontal, 20)
+
+            Spacer()
+        }
+        .background(Color(uiColor: .systemGroupedBackground))
     }
 }
 
