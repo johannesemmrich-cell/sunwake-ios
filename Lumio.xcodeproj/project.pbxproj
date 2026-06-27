@@ -96,14 +96,14 @@
 		05C5765A26A414F4A9338019 /* MainTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTabView.swift; sourceTree = "<group>"; };
 		08430B3A477D7F93A96A8CEA /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		0843B976E75FD3634CDA0813 /* SwiftDataModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwiftDataModels.swift; sourceTree = "<group>"; };
-		148D4EF05C0373A66FD8B07C /* Lumio.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Lumio.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		148D4EF05C0373A66FD8B07C /* Lumio.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Lumio.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		14FA7110BBFBC6448A26C840 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		1AA48C8AF90AC73A83391B04 /* SpeechService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechService.swift; sourceTree = "<group>"; };
 		22880EC8D849EB2BB1C4CF97 /* CalendarService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarService.swift; sourceTree = "<group>"; };
 		29C097AA9094F740D4614C78 /* AppIconPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppIconPickerView.swift; sourceTree = "<group>"; };
 		2C64E3D180D9C05CE91BB795 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		34D698E53BE485BF711A70FC /* ThemeManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeManager.swift; sourceTree = "<group>"; };
-		380413F29FFBA82FBEB1A691 /* LumioWidgetExtension.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = LumioWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		380413F29FFBA82FBEB1A691 /* LumioWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = LumioWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		3EB7BEF0A1A348E30B0C0E8F /* AIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIService.swift; sourceTree = "<group>"; };
 		4062E261C739FCC2CE301214 /* LumioUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = LumioUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		441D4B719935A890199742E9 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
@@ -121,7 +121,7 @@
 		8FB37907C308EE92921E9C18 /* LiveActivityService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityService.swift; sourceTree = "<group>"; };
 		91AFD9F0EC3B89E66BCECB09 /* OnboardingViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingViewModel.swift; sourceTree = "<group>"; };
 		A4DC63E04C85C0FD3AAF9BDA /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
-		AB271E6CFE2390F85F248AD6 /* LumioDynamicIsland.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = LumioDynamicIsland.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		AB271E6CFE2390F85F248AD6 /* LumioDynamicIsland.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = LumioDynamicIsland.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		ABCC65D5E4201CB6960463B8 /* Lumio.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Lumio.entitlements; sourceTree = "<group>"; };
 		B05349DD390F5584FEFF1ADE /* LumioTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LumioTests.swift; sourceTree = "<group>"; };
 		B96EA9B375A0C43D916A8270 /* OnboardingContainerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingContainerView.swift; sourceTree = "<group>"; };
@@ -491,15 +491,6 @@
 						DevelopmentTeam = "";
 						TestTargetID = 8ED5C6987C83F9077B7E2D5C;
 					};
-					3D3764E3EE5CB2E569D76E98 = {
-						DevelopmentTeam = "";
-					};
-					4BB43C88A25E0A3FE24A4089 = {
-						DevelopmentTeam = "";
-					};
-					8ED5C6987C83F9077B7E2D5C = {
-						DevelopmentTeam = "";
-					};
 				};
 			};
 			buildConfigurationList = AA0FD467BD6B68CC4AA2BB5E /* Build configuration list for PBXProject "Lumio" */;
@@ -719,6 +710,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = "Lumio/Supporting Files/Lumio.entitlements";
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				DEVELOPMENT_TEAM = XK87E2B3VR;
 				ENABLE_HARDENED_RUNTIME = YES;
 				INFOPLIST_FILE = "Lumio/Supporting Files/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
@@ -812,6 +804,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = NO;
+				DEVELOPMENT_TEAM = XK87E2B3VR;
 				INFOPLIST_FILE = LumioWidgetExtension/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -834,6 +827,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = "Lumio/Supporting Files/Lumio.entitlements";
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				DEVELOPMENT_TEAM = XK87E2B3VR;
 				ENABLE_HARDENED_RUNTIME = YES;
 				INFOPLIST_FILE = "Lumio/Supporting Files/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
@@ -851,6 +845,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = NO;
+				DEVELOPMENT_TEAM = XK87E2B3VR;
 				INFOPLIST_FILE = LumioDynamicIsland/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -886,6 +881,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = NO;
+				DEVELOPMENT_TEAM = XK87E2B3VR;
 				INFOPLIST_FILE = LumioWidgetExtension/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -904,6 +900,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = NO;
+				DEVELOPMENT_TEAM = XK87E2B3VR;
 				INFOPLIST_FILE = LumioDynamicIsland/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (

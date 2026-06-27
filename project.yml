@@ -16,7 +16,7 @@ configs:
 settings:
   base:
     SWIFT_VERSION: "6.0"
-    DEVELOPMENT_TEAM: ""
+    DEVELOPMENT_TEAM: "XK87E2B3VR"
     ENABLE_PREVIEWS: YES
     SWIFT_STRICT_CONCURRENCY: complete
 
