@@ -59,11 +59,11 @@ struct ChatView: View {
                 }
             }
             ToolbarItem(placement: .topBarTrailing) {
-                Button("Clear") { viewModel.clearHistory() }
+                Button("Clear") { viewModel.clearHistory(language: appState.selectedLanguage) }
                     .foregroundStyle(.secondary)
             }
         }
-        .task { await viewModel.setup() }
+        .task { await viewModel.setup(language: appState.selectedLanguage) }
     }
 }
 

@@ -9,6 +9,15 @@ final class AppState: ObservableObject {
     @Published var selectedLanguage: String {
         didSet { UserDefaults.standard.set(selectedLanguage, forKey: UserDefaultsKey.selectedLanguage) }
     }
+    @Published var tabOrder: [AppTab] {
+        didSet { UserDefaults.standard.set(tabOrder.map(\.rawValue), forKey: UserDefaultsKey.tabOrder) }
+    }
+    @Published var briefingLength: BriefingLength {
+        didSet { UserDefaults.standard.set(briefingLength.rawValue, forKey: UserDefaultsKey.briefingLength) }
+    }
+    @Published var briefingStyle: BriefingStyle {
+        didSet { UserDefaults.standard.set(briefingStyle.rawValue, forKey: UserDefaultsKey.briefingStyle) }
+    }
 
     var locale: Locale { Locale(identifier: selectedLanguage) }
 
@@ -17,6 +26,17 @@ final class AppState: ObservableObject {
         self.isDeveloperModeActive = UserDefaults.standard.bool(forKey: UserDefaultsKey.developerModeActive)
         let saved = UserDefaults.standard.string(forKey: UserDefaultsKey.selectedLanguage)
         self.selectedLanguage = saved ?? (Locale.current.language.languageCode?.identifier == "de" ? "de" : "en")
+
+        if let savedOrder = UserDefaults.standard.stringArray(forKey: UserDefaultsKey.tabOrder) {
+            let ordered = savedOrder.compactMap { AppTab(rawValue: $0) }
+            let missing = AppTab.allCases.filter { !ordered.contains($0) }
+            self.tabOrder = ordered + missing
+        } else {
+            self.tabOrder = AppTab.allCases
+        }
+
+        self.briefingLength = BriefingLength(rawValue: UserDefaults.standard.string(forKey: UserDefaultsKey.briefingLength) ?? "") ?? .medium
+        self.briefingStyle = BriefingStyle(rawValue: UserDefaults.standard.string(forKey: UserDefaultsKey.briefingStyle) ?? "") ?? .friendly
     }
 
     func completeOnboarding() {
@@ -59,4 +79,45 @@ enum UserDefaultsKey {
     static let developerModeActive = "developerModeActive"
     static let selectedTheme = "selectedTheme"
     static let connectedCalendars = "connectedCalendars"
+    static let tabOrder = "tabOrder"
+    static let briefingLength = "briefingLength"
+    static let briefingStyle = "briefingStyle"
+}
+
+// MARK: — Briefing Settings
+
+enum BriefingLength: String, CaseIterable {
+    case short  = "short"
+    case medium = "medium"
+    case long   = "long"
+
+    var displayName: LocalizedStringKey {
+        switch self {
+        case .short:  return "Kurz"
+        case .medium: return "Mittel"
+        case .long:   return "Lang"
+        }
+    }
+
+    var maxSentences: Int {
+        switch self {
+        case .short:  return 1
+        case .medium: return 3
+        case .long:   return 5
+        }
+    }
+}
+
+enum BriefingStyle: String, CaseIterable {
+    case friendly = "friendly"
+    case formal   = "formal"
+    case concise  = "concise"
+
+    var displayName: LocalizedStringKey {
+        switch self {
+        case .friendly: return "Freundlich"
+        case .formal:   return "Formell"
+        case .concise:  return "Knapp"
+        }
+    }
 }

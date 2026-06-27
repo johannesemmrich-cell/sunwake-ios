@@ -61,11 +61,17 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
                 }
 
-                // Premium design customization
+                // Premium customization
                 if subscriptionManager.effectivelyPremium {
                     Section("Premium") {
+                        NavigationLink(destination: BriefingSettingsView()) {
+                            Label("Briefing einstellen", systemImage: "waveform.and.sparkles")
+                        }
+                        NavigationLink(destination: TabOrderView()) {
+                            Label("Tab-Reihenfolge", systemImage: "rectangle.grid.1x2")
+                        }
                         NavigationLink(destination: AppIconPickerView()) {
-                            Label("App design anpassen", systemImage: "paintpalette.fill")
+                            Label("App-Icon", systemImage: "paintpalette.fill")
                         }
                     }
                 }

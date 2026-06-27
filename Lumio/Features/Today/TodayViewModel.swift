@@ -9,6 +9,10 @@ final class TodayViewModel: ObservableObject {
     @Published private(set) var isGeneratingAI: Bool = false
     @Published private(set) var error: String?
 
+    var language: String = "en"
+    var briefingLength: BriefingLength = .medium
+    var briefingStyle: BriefingStyle = .friendly
+
     private let calendarService = CalendarService()
     private let aiService = AIService()
 
@@ -35,9 +39,14 @@ final class TodayViewModel: ObservableObject {
     }
 
     private func generateSummary() async {
-        guard !events.isEmpty else { return }
         isGeneratingAI = true
         defer { isGeneratingAI = false }
-        aiSummary = await aiService.summarizeBriefing(events: events, pdfTexts: [])
+        aiSummary = await aiService.summarizeBriefing(
+            events: events,
+            pdfTexts: [],
+            language: language,
+            length: briefingLength,
+            style: briefingStyle
+        )
     }
 }

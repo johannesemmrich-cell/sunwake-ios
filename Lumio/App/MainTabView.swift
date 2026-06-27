@@ -6,29 +6,32 @@ struct MainTabView: View {
 
     var body: some View {
         TabView(selection: $appState.selectedTab) {
-            Tab("Today", systemImage: "sun.horizon.fill", value: AppTab.today) {
-                TodayView()
-            }
-
-            Tab("Library", systemImage: "books.vertical.fill", value: AppTab.library) {
-                LibraryView()
-            }
-
-            Tab("Chat", systemImage: "bubble.left.and.bubble.right.fill", value: AppTab.chat) {
-                ChatView()
-                    .overlay(alignment: .topTrailing) {
-                        if !subscriptionManager.effectivelyPremium {
-                            PremiumBadge()
-                                .padding(8)
-                        }
-                    }
-            }
-
-            Tab("Settings", systemImage: "gearshape.fill", value: AppTab.settings) {
-                SettingsView()
+            ForEach(appState.tabOrder, id: \.self) { tab in
+                Tab(tab.title, systemImage: tab.icon, value: tab) {
+                    tabContent(for: tab)
+                }
             }
         }
         .tint(Color.lumioAccent)
+    }
+
+    @ViewBuilder
+    private func tabContent(for tab: AppTab) -> some View {
+        switch tab {
+        case .today:
+            TodayView()
+        case .library:
+            LibraryView()
+        case .chat:
+            ChatView()
+                .overlay(alignment: .topTrailing) {
+                    if !subscriptionManager.effectivelyPremium {
+                        PremiumBadge().padding(8)
+                    }
+                }
+        case .settings:
+            SettingsView()
+        }
     }
 }
 

@@ -7,18 +7,19 @@ final class ChatViewModel: ObservableObject {
     @Published var inputText: String = ""
     @Published private(set) var isThinking: Bool = false
 
+    var language: String = "en"
+
     private let aiService = AIService()
     private let calendarService = CalendarService()
 
-    func setup() async {
+    func setup(language: String = "en") async {
+        self.language = language
         let _ = await calendarService.requestAccess()
         if messages.isEmpty {
-            let greeting = ChatMessage(
-                role: .assistant,
-                text: String(localized: "Hi! I'm your Lumio assistant. I can help you with your schedule, answer questions about your lecture notes, or add events to your calendar. What can I help you with?"),
-                timestamp: Date()
-            )
-            messages.append(greeting)
+            let greetingText = language == "de"
+                ? "Hallo! Ich bin dein Lumio-Assistent. Ich kann dir bei deinem Tagesplan helfen, Fragen zu deinen Notizen beantworten oder Termine eintragen. Was kann ich für dich tun?"
+                : String(localized: "Hi! I'm your Lumio assistant. I can help you with your schedule, answer questions about your lecture notes, or add events to your calendar. What can I help you with?")
+            messages.append(ChatMessage(role: .assistant, text: greetingText, timestamp: Date()))
         }
     }
 
@@ -39,12 +40,13 @@ final class ChatViewModel: ObservableObject {
             date: Date()
         )
 
-        let response = await aiService.answerQuestion(text, context: context)
+        let response = await aiService.answerQuestion(text, context: context, language: language)
         messages.append(ChatMessage(role: .assistant, text: response, timestamp: Date()))
     }
 
-    func clearHistory() {
+    func clearHistory(language: String? = nil) {
         messages = []
-        Task { await setup() }
+        let lang = language ?? self.language
+        Task { await setup(language: lang) }
     }
 }

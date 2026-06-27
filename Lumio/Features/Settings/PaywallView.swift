@@ -12,7 +12,7 @@ struct PaywallView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 32) {
+                VStack(spacing: 28) {
                     // Hero
                     VStack(spacing: 12) {
                         Image(systemName: "star.fill")
@@ -32,40 +32,38 @@ struct PaywallView: View {
                     }
                     .padding(.top, 24)
 
-                    // Feature list
-                    VStack(alignment: .leading, spacing: 14) {
-                        PremiumFeatureRow(icon: "calendar.badge.plus", color: .blue, text: "Multiple calendars simultaneously")
-                        PremiumFeatureRow(icon: "doc.fill", color: .green, text: "Unlimited PDFs & folders")
-                        PremiumFeatureRow(icon: "waveform.badge.sparkles", color: .purple, text: "Full audio: events + lecture summaries")
-                        PremiumFeatureRow(icon: "bubble.left.and.sparkles.fill", color: .orange, text: "AI chatbot for your day")
-                        PremiumFeatureRow(icon: "rectangle.3.group.fill", color: .pink, text: "Home screen widget")
-                        PremiumFeatureRow(icon: "brain", color: .indigo, text: "Learns your preferences over time")
-                    }
-                    .padding(18)
-                    .background(RoundedRectangle(cornerRadius: 18).fill(Color(uiColor: .secondarySystemBackground)))
-
-                    // Product picker
+                    // Product picker (with prices)
                     VStack(spacing: 10) {
-                        ForEach(subscriptionManager.products) { product in
-                            ProductOptionRow(
-                                product: product,
-                                isSelected: selectedProductID == product.id,
-                                isBestValue: product.id == SubscriptionManager.yearlyProductID
-                            ) {
-                                selectedProductID = product.id
+                        if subscriptionManager.products.isEmpty {
+                            VStack(spacing: 10) {
+                                ProductPlaceholderRow(title: "Jährlich", price: "19,99 €/Jahr", subtitle: "1,67 €/Monat", isBest: true, isSelected: selectedProductID == SubscriptionManager.yearlyProductID) {
+                                    selectedProductID = SubscriptionManager.yearlyProductID
+                                }
+                                ProductPlaceholderRow(title: "Monatlich", price: "2,99 €/Monat", subtitle: nil, isBest: false, isSelected: selectedProductID == SubscriptionManager.monthlyProductID) {
+                                    selectedProductID = SubscriptionManager.monthlyProductID
+                                }
+                            }
+                        } else {
+                            ForEach(subscriptionManager.products) { product in
+                                ProductOptionRow(
+                                    product: product,
+                                    isSelected: selectedProductID == product.id,
+                                    isBestValue: product.id == SubscriptionManager.yearlyProductID
+                                ) {
+                                    selectedProductID = product.id
+                                }
                             }
                         }
                     }
 
                     // Purchase button
-                    VStack(spacing: 10) {
+                    VStack(spacing: 12) {
                         Button {
                             Task { await purchase() }
                         } label: {
                             Group {
                                 if isPurchasing {
-                                    ProgressView()
-                                        .tint(.white)
+                                    ProgressView().tint(.white)
                                 } else {
                                     Text("Get Premium")
                                         .font(LumioTypography.headline)
@@ -77,7 +75,7 @@ struct PaywallView: View {
                             .foregroundStyle(.white)
                             .clipShape(RoundedRectangle(cornerRadius: 16))
                         }
-                        .disabled(isPurchasing || subscriptionManager.products.isEmpty)
+                        .disabled(isPurchasing)
 
                         if let error = purchaseError {
                             Text(error)
@@ -91,12 +89,15 @@ struct PaywallView: View {
                         }
                         .font(LumioTypography.caption)
                         .foregroundStyle(.secondary)
-
-                        Text("Prices shown in EUR. Payment will be charged to your Apple ID account. Subscriptions auto-renew unless cancelled.")
-                            .font(LumioTypography.caption2)
-                            .foregroundStyle(.tertiary)
-                            .multilineTextAlignment(.center)
                     }
+
+                    // Free vs Premium comparison table
+                    comparisonTable
+
+                    Text("Prices in EUR. Payment via Apple ID. Subscription auto-renews unless cancelled.")
+                        .font(LumioTypography.caption2)
+                        .foregroundStyle(.tertiary)
+                        .multilineTextAlignment(.center)
                 }
                 .padding(.horizontal, 20)
                 .padding(.bottom, 40)
@@ -111,6 +112,69 @@ struct PaywallView: View {
         }
     }
 
+    private var comparisonTable: some View {
+        VStack(spacing: 0) {
+            // Header row
+            HStack {
+                Text("Funktion")
+                    .font(LumioTypography.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                Text("Free")
+                    .font(LumioTypography.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 56, alignment: .center)
+                Text("Premium")
+                    .font(LumioTypography.caption.weight(.bold))
+                    .foregroundStyle(Color.lumioAccent)
+                    .frame(width: 72, alignment: .center)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+
+            Divider().padding(.horizontal, 14)
+
+            comparisonRow("Kalender",           free: "1",           premium: "Mehrere")
+            comparisonRow("PDFs",               free: "5/Ordner",    premium: "Unbegrenzt")
+            comparisonRow("Vorlesen",           free: "Termine",     premium: "Alles")
+            comparisonRow("KI-Chatbot",         free: nil,           premium: "✓")
+            comparisonRow("Briefing-Länge",     free: nil,           premium: "✓")
+            comparisonRow("Tab-Reihenfolge",    free: nil,           premium: "✓")
+            comparisonRow("App-Icons",          free: nil,           premium: "✓")
+            comparisonRow("Widget",             free: nil,           premium: "✓")
+        }
+        .background(RoundedRectangle(cornerRadius: 16).fill(Color(uiColor: .secondarySystemBackground)))
+    }
+
+    private func comparisonRow(_ feature: LocalizedStringKey, free: String?, premium: String) -> some View {
+        VStack(spacing: 0) {
+            HStack {
+                Text(feature)
+                    .font(LumioTypography.callout)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                Group {
+                    if let free {
+                        Text(free)
+                            .font(LumioTypography.caption)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Image(systemName: "xmark")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(Color.secondary.opacity(0.4))
+                    }
+                }
+                .frame(width: 56, alignment: .center)
+                Text(premium)
+                    .font(LumioTypography.caption.weight(.semibold))
+                    .foregroundStyle(premium == "✓" ? Color.green : Color.lumioAccent)
+                    .frame(width: 72, alignment: .center)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            Divider().padding(.horizontal, 14)
+        }
+    }
+
     private func purchase() async {
         guard let product = subscriptionManager.products.first(where: { $0.id == selectedProductID }) else { return }
         isPurchasing = true
@@ -121,6 +185,56 @@ struct PaywallView: View {
         } catch {
             purchaseError = error.localizedDescription
         }
+    }
+}
+
+struct ProductPlaceholderRow: View {
+    let title: String
+    let price: String
+    let subtitle: String?
+    let isBest: Bool
+    let isSelected: Bool
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            HStack {
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack(spacing: 8) {
+                        Text(title)
+                            .font(LumioTypography.callout.weight(.semibold))
+                        if isBest {
+                            Text("Best value")
+                                .font(LumioTypography.caption2.weight(.bold))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(Capsule().fill(Color.green))
+                        }
+                    }
+                    if let subtitle {
+                        Text(subtitle)
+                            .font(LumioTypography.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                Spacer()
+                Text(price)
+                    .font(LumioTypography.callout.weight(.bold))
+                    .foregroundStyle(isSelected ? Color.lumioAccent : .primary)
+            }
+            .padding(14)
+            .background(
+                RoundedRectangle(cornerRadius: 14)
+                    .fill(isSelected ? Color.lumioAccent.opacity(0.08) : Color(uiColor: .secondarySystemBackground))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14)
+                            .strokeBorder(isSelected ? Color.lumioAccent : Color.clear, lineWidth: 1.5)
+                    )
+            )
+        }
+        .buttonStyle(.plain)
+        .animation(.spring(duration: 0.2), value: isSelected)
     }
 }
 

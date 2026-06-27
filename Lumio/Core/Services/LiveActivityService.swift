@@ -47,7 +47,7 @@ final class LiveActivityService: ObservableObject, @unchecked Sendable {
         do {
             currentActivity = try Activity.request(
                 attributes: attributes,
-                content: .init(state: state, staleDate: Date().addingTimeInterval(3600))
+                content: .init(state: state, staleDate: Date().addingTimeInterval(180))
             )
             isActivityActive = true
         } catch {
@@ -68,7 +68,7 @@ final class LiveActivityService: ObservableObject, @unchecked Sendable {
             totalItems: totalEvents,
             currentIndex: index
         )
-        let content = ActivityContent(state: state, staleDate: Date().addingTimeInterval(3600))
+        let content = ActivityContent(state: state, staleDate: Date().addingTimeInterval(180))
         // Hop to a detached task so Activity (non-Sendable in some SDK builds) isn't crossing isolation
         let captured = activity
         await Task.detached { await captured.update(content) }.value

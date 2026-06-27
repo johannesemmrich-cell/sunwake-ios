@@ -34,7 +34,12 @@ struct TodayView: View {
                         Spacer().frame(height: 120)
                     }
                 }
-                .refreshable { await viewModel.refresh() }
+                .refreshable {
+                    viewModel.language = appState.selectedLanguage
+                    viewModel.briefingLength = appState.briefingLength
+                    viewModel.briefingStyle = appState.briefingStyle
+                    await viewModel.refresh()
+                }
 
                 PlayBarView(speechService: speechService, events: viewModel.events)
                     .padding(.horizontal, 16)
@@ -69,7 +74,12 @@ struct TodayView: View {
                 LumioCalendarView()
                     .environmentObject(appState)
             }
-            .task { await viewModel.loadInitialData() }
+            .task {
+                viewModel.language = appState.selectedLanguage
+                viewModel.briefingLength = appState.briefingLength
+                viewModel.briefingStyle = appState.briefingStyle
+                await viewModel.loadInitialData()
+            }
         }
         .sheet(isPresented: $showPaywall) {
             PaywallView()

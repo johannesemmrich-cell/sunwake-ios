@@ -58,6 +58,7 @@ final class SpeechService: NSObject, ObservableObject {
         isPaused = false
         currentItemTitle = ""
         progress = 0
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
         Task { await liveActivityService.stop() }
     }
 
@@ -88,6 +89,10 @@ final class SpeechService: NSObject, ObservableObject {
         }
         let item = queue[currentIndex]
         currentItemTitle = item.title
+
+        // Activate audio session right before each utterance so the route is fresh
+        try? AVAudioSession.sharedInstance().setActive(true, options: .notifyOthersOnDeactivation)
+
         let utterance = AVSpeechUtterance(string: item.text)
         utterance.voice = AVSpeechSynthesisVoice(language: item.language)
         utterance.rate = 0.52
@@ -102,8 +107,8 @@ final class SpeechService: NSObject, ObservableObject {
 
     private func setupAudioSession() {
         do {
-            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .spokenAudio, options: [.mixWithOthers])
-            try AVAudioSession.sharedInstance().setActive(true)
+            // .playback ignores the silent switch; no .mixWithOthers so we own the audio route
+            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .spokenAudio)
         } catch {
             print("Audio session setup failed: \(error)")
         }

@@ -174,13 +174,15 @@ final class CalendarEventNote {
     var customNotes: String
     var linkedKeywords: String   // comma-separated keywords linking to Library PDFs
     var updatedAt: Date
+    var priority: Int            // 0 = normal, 1 = hoch — beeinflusst den Fokus im Briefing
 
-    init(eventIdentifier: String, customNotes: String = "", linkedKeywords: String = "") {
+    init(eventIdentifier: String, customNotes: String = "", linkedKeywords: String = "", priority: Int = 0) {
         self.id = UUID()
         self.eventIdentifier = eventIdentifier
         self.customNotes = customNotes
         self.linkedKeywords = linkedKeywords
         self.updatedAt = Date()
+        self.priority = priority
     }
 
     var keywordList: [String] {
@@ -189,4 +191,6 @@ final class CalendarEventNote {
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }
     }
+
+    var isHighPriority: Bool { priority >= 1 }
 }

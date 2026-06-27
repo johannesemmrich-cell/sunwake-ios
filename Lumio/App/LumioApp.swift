@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import ActivityKit
 
 @main
 struct LumioApp: App {
@@ -39,6 +40,13 @@ struct LumioApp: App {
                 .modelContainer(sharedModelContainer)
                 .preferredColorScheme(themeManager.preferredColorScheme)
                 .environment(\.locale, appState.locale)
+                .task { await endStaleLiveActivities() }
+        }
+    }
+
+    private func endStaleLiveActivities() async {
+        for activity in Activity<LumioBriefingAttributes>.activities {
+            await activity.end(nil, dismissalPolicy: .immediate)
         }
     }
 }
