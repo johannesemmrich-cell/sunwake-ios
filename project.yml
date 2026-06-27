@@ -1,0 +1,120 @@
+name: Lumio
+options:
+  bundleIdPrefix: com.johannesemmrich
+  deploymentTarget:
+    iOS: "26.0"
+  xcodeVersion: "26.5"
+  createIntermediateGroups: true
+  groupSortPosition: top
+  generateEmptyDirectories: true
+  defaultConfig: Debug
+
+configs:
+  Debug: debug
+  Release: release
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    DEVELOPMENT_TEAM: ""
+    ENABLE_PREVIEWS: YES
+    SWIFT_STRICT_CONCURRENCY: complete
+
+targets:
+  Lumio:
+    type: application
+    platform: iOS
+    deploymentTarget: "26.0"
+    sources:
+      - path: Lumio
+    resources:
+      - path: Lumio/Resources
+    info:
+      path: Lumio/Supporting Files/Info.plist
+      properties:
+        CFBundleDisplayName: Lumio
+        CFBundleShortVersionString: "1.0"
+        CFBundleVersion: "1"
+        UILaunchScreen:
+          UIColorName: ""
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        NSCalendarsUsageDescription: "Lumio reads your calendar to prepare your morning briefing."
+        NSCalendarsWriteOnlyAccessUsageDescription: "Lumio can add events to your calendar via the AI assistant."
+        NSRemindersUsageDescription: "Lumio can read your reminders as part of your daily briefing."
+        UIBackgroundModes:
+          - audio
+          - fetch
+          - remote-notification
+        NSUserActivityTypes:
+          - com.johannesemmrich.lumio.briefing
+    entitlements:
+      path: Lumio/Supporting Files/Lumio.entitlements
+      properties:
+        com.apple.developer.icloud-services:
+          - CloudDocuments
+        com.apple.developer.icloud-container-identifiers:
+          - iCloud.com.johannesemmrich.lumio
+        aps-environment: development
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.johannesemmrich.lumio
+        INFOPLIST_FILE: "Lumio/Supporting Files/Info.plist"
+        CODE_SIGN_ENTITLEMENTS: "Lumio/Supporting Files/Lumio.entitlements"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        ENABLE_HARDENED_RUNTIME: YES
+
+  LumioTests:
+    type: bundle.unit-test
+    platform: iOS
+    deploymentTarget: "26.0"
+    sources:
+      - path: LumioTests
+    dependencies:
+      - target: Lumio
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.johannesemmrich.lumio.tests
+
+  LumioUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    deploymentTarget: "26.0"
+    sources:
+      - path: LumioUITests
+    dependencies:
+      - target: Lumio
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.johannesemmrich.lumio.uitests
+
+schemes:
+  Lumio:
+    build:
+      targets:
+        Lumio: all
+        LumioTests: [test]
+        LumioUITests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - name: LumioTests
+          parallelizable: true
+          randomExecutionOrder: true
+        - name: LumioUITests
+    profile:
+      config: Release
+    analyze:
+      config: Debug
+    archive:
+      config: Release

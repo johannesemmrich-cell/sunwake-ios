@@ -1,0 +1,58 @@
+/* App-wide */
+"Good morning" = "Good morning";
+"Good afternoon" = "Good afternoon";
+"Good evening" = "Good evening";
+"Today" = "Today";
+"Library" = "Library";
+"Chat" = "Chat";
+"Settings" = "Settings";
+"Cancel" = "Cancel";
+"Done" = "Done";
+"Continue" = "Continue";
+"Skip for now" = "Skip for now";
+"Save" = "Save";
+"Delete" = "Delete";
+"Edit" = "Edit";
+
+/* Onboarding */
+"Get Started" = "Get Started";
+"Your intelligent morning briefing" = "Your intelligent morning briefing";
+"Choose your language" = "Choose your language";
+"Connect your calendar" = "Connect your calendar";
+"Wake up to your day" = "Wake up to your day";
+"Upload your lecture slides" = "Upload your lecture slides";
+"Free & Premium" = "Free & Premium";
+
+/* Today */
+"Today's Events" = "Today's Events";
+"Clear day ahead" = "Clear day ahead";
+"No events scheduled for today. Enjoy the open time." = "No events scheduled for today. Enjoy the open time.";
+"All day" = "All day";
+"Now" = "Now";
+"Play briefing" = "Play briefing";
+"Preparing your briefing…" = "Preparing your briefing…";
+
+/* Library */
+"No Folders Yet" = "No Folders Yet";
+"No PDFs Yet" = "No PDFs Yet";
+"New Folder" = "New Folder";
+
+/* Chat */
+"AI Chat is Premium" = "AI Chat is Premium";
+
+/* Settings */
+"Connected Calendars" = "Connected Calendars";
+"Morning briefing" = "Morning briefing";
+"Appearance" = "Appearance";
+"Subscription" = "Subscription";
+"Premium Active" = "Premium Active";
+"Restore Purchases" = "Restore Purchases";
+"About" = "About";
+"Privacy" = "Privacy";
+"Developer Mode" = "Developer Mode";
+
+/* Premium */
+"Lumio Premium" = "Lumio Premium";
+"Unlock the full morning briefing experience" = "Unlock the full morning briefing experience";
+"Get Premium" = "Get Premium";
+"Best value" = "Best value";

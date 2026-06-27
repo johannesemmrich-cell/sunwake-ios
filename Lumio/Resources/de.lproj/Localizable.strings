@@ -1,0 +1,58 @@
+/* App-wide */
+"Good morning" = "Guten Morgen";
+"Good afternoon" = "Guten Mittag";
+"Good evening" = "Guten Abend";
+"Today" = "Heute";
+"Library" = "Bibliothek";
+"Chat" = "Chat";
+"Settings" = "Einstellungen";
+"Cancel" = "Abbrechen";
+"Done" = "Fertig";
+"Continue" = "Weiter";
+"Skip for now" = "Überspringen";
+"Save" = "Speichern";
+"Delete" = "Löschen";
+"Edit" = "Bearbeiten";
+
+/* Onboarding */
+"Get Started" = "Los geht's";
+"Your intelligent morning briefing" = "Dein intelligentes Morgen-Briefing";
+"Choose your language" = "Sprache wählen";
+"Connect your calendar" = "Kalender verbinden";
+"Wake up to your day" = "Starte deinen Tag";
+"Upload your lecture slides" = "Vorlesungsfolien hochladen";
+"Free & Premium" = "Kostenlos & Premium";
+
+/* Today */
+"Today's Events" = "Heutige Termine";
+"Clear day ahead" = "Entspannter Tag";
+"No events scheduled for today. Enjoy the open time." = "Keine Termine heute. Genieß die freie Zeit.";
+"All day" = "Ganztägig";
+"Now" = "Jetzt";
+"Play briefing" = "Briefing abspielen";
+"Preparing your briefing…" = "Briefing wird vorbereitet…";
+
+/* Library */
+"No Folders Yet" = "Noch keine Ordner";
+"No PDFs Yet" = "Noch keine PDFs";
+"New Folder" = "Neuer Ordner";
+
+/* Chat */
+"AI Chat is Premium" = "KI-Chat ist Premium";
+
+/* Settings */
+"Connected Calendars" = "Verbundene Kalender";
+"Morning briefing" = "Morgen-Briefing";
+"Appearance" = "Darstellung";
+"Subscription" = "Abonnement";
+"Premium Active" = "Premium aktiv";
+"Restore Purchases" = "Käufe wiederherstellen";
+"About" = "Über";
+"Privacy" = "Datenschutz";
+"Developer Mode" = "Entwicklermodus";
+
+/* Premium */
+"Lumio Premium" = "Lumio Premium";
+"Unlock the full morning briefing experience" = "Das vollständige Briefing-Erlebnis freischalten";
+"Get Premium" = "Premium holen";
+"Best value" = "Bestes Angebot";

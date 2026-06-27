@@ -1,0 +1,314 @@
+import SwiftUI
+import SwiftData
+
+// MARK: — Unlock Sheet
+
+struct DeveloperUnlockSheet: View {
+    @Binding var isPresented: Bool
+    @EnvironmentObject private var appState: AppState
+
+    @State private var password = ""
+    @State private var confirmPassword = ""
+    @State private var error = ""
+    @FocusState private var focused: Bool
+
+    private var hasPassword: Bool {
+        UserDefaults.standard.bool(forKey: UserDefaultsKey.hasSetDeveloperPassword)
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    if !hasPassword {
+                        Text("Set a Developer Mode password. You'll need this to activate or deactivate Developer Mode in the future.")
+                            .font(LumioTypography.callout)
+                            .foregroundStyle(.secondary)
+                        SecureField("New password", text: $password)
+                            .focused($focused)
+                        SecureField("Confirm password", text: $confirmPassword)
+                    } else {
+                        Text(appState.isDeveloperModeActive ? "Enter your password to deactivate Developer Mode." : "Enter your password to activate Developer Mode.")
+                            .font(LumioTypography.callout)
+                            .foregroundStyle(.secondary)
+                        SecureField("Password", text: $password)
+                            .focused($focused)
+                    }
+                }
+
+                if !error.isEmpty {
+                    Section {
+                        Text(error)
+                            .font(LumioTypography.caption)
+                            .foregroundStyle(.red)
+                    }
+                }
+            }
+            .navigationTitle("Developer Mode")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Cancel") { isPresented = false }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(hasPassword ? "Confirm" : "Set Password") {
+                        handleSubmit()
+                    }
+                    .fontWeight(.semibold)
+                }
+            }
+            .onAppear { focused = true }
+        }
+        .presentationDetents([.fraction(0.45)])
+    }
+
+    private func handleSubmit() {
+        if !hasPassword {
+            guard password == confirmPassword else {
+                error = "Passwords don't match."
+                return
+            }
+            guard password.count >= 4 else {
+                error = "Password must be at least 4 characters."
+                return
+            }
+            UserDefaults.standard.set(password, forKey: UserDefaultsKey.developerModePassword)
+            UserDefaults.standard.set(true, forKey: UserDefaultsKey.hasSetDeveloperPassword)
+            appState.isDeveloperModeActive = true
+            UserDefaults.standard.set(true, forKey: UserDefaultsKey.developerModeActive)
+            isPresented = false
+        } else {
+            let stored = UserDefaults.standard.string(forKey: UserDefaultsKey.developerModePassword) ?? ""
+            guard password == stored else {
+                error = "Incorrect password."
+                return
+            }
+            let newState = !appState.isDeveloperModeActive
+            appState.isDeveloperModeActive = newState
+            UserDefaults.standard.set(newState, forKey: UserDefaultsKey.developerModeActive)
+            isPresented = false
+        }
+    }
+}
+
+// MARK: — Developer Mode Main View
+
+struct DeveloperModeView: View {
+    @EnvironmentObject private var appState: AppState
+    @Environment(\.modelContext) private var modelContext
+    @Query(sort: \FeedbackEntry.timestamp, order: .reverse) private var feedbackEntries: [FeedbackEntry]
+
+    var body: some View {
+        List {
+            Section {
+                Label("Developer Mode is active", systemImage: "checkmark.shield.fill")
+                    .foregroundStyle(.green)
+                Label("All Premium features unlocked", systemImage: "star.fill")
+                    .foregroundStyle(Color.lumioAccent)
+            }
+
+            Section("Feedback Log (\(feedbackEntries.count))") {
+                if feedbackEntries.isEmpty {
+                    Text("No feedback entries yet. Tap 👎 on any element while Developer Mode is active.")
+                        .font(LumioTypography.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(feedbackEntries) { entry in
+                        NavigationLink(destination: FeedbackEntryDetailView(entry: entry)) {
+                            FeedbackEntryRow(entry: entry)
+                        }
+                    }
+                    .onDelete { offsets in
+                        for index in offsets {
+                            modelContext.delete(feedbackEntries[index])
+                        }
+                    }
+                }
+            }
+        }
+        .navigationTitle("Developer Mode")
+        .listStyle(.insetGrouped)
+        .toolbar {
+            if !feedbackEntries.isEmpty {
+                ToolbarItem(placement: .topBarTrailing) {
+                    EditButton()
+                }
+            }
+        }
+    }
+}
+
+struct FeedbackEntryRow: View {
+    let entry: FeedbackEntry
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text(entry.screenContext)
+                    .font(LumioTypography.caption.weight(.semibold))
+                Text("›")
+                    .foregroundStyle(.secondary)
+                Text(entry.featureContext)
+                    .font(LumioTypography.caption)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Text(entry.priority.emoji)
+            }
+            if !entry.notes.isEmpty {
+                Text(entry.notes)
+                    .font(LumioTypography.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+            }
+            Text(entry.timestamp, format: .dateTime.day().month().hour().minute())
+                .font(LumioTypography.caption2)
+                .foregroundStyle(.tertiary)
+        }
+        .padding(.vertical, 4)
+    }
+}
+
+struct FeedbackEntryDetailView: View {
+    @Bindable var entry: FeedbackEntry
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        Form {
+            Section("Context") {
+                LabeledContent("Screen", value: entry.screenContext)
+                LabeledContent("Feature", value: entry.featureContext)
+                LabeledContent("Element", value: entry.elementContext)
+                LabeledContent("Time", value: entry.timestamp.formatted(.dateTime))
+            }
+
+            Section("Notes") {
+                TextEditor(text: $entry.notes)
+                    .frame(minHeight: 80)
+            }
+
+            Section("Priority") {
+                Picker("Priority", selection: $entry.priority) {
+                    ForEach(FeedbackPriority.allCases, id: \.self) { p in
+                        Text("\(p.emoji) \(p.rawValue)").tag(p)
+                    }
+                }
+                .pickerStyle(.segmented)
+            }
+        }
+        .navigationTitle("Feedback Entry")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+// MARK: — Feedback collection UI (thumbs down overlay)
+
+struct DeveloperFeedbackButton: View {
+    let screen: String
+    let feature: String
+    let element: String
+    @State private var showSheet = false
+
+    var body: some View {
+        Button {
+            showSheet = true
+        } label: {
+            Image(systemName: "hand.thumbsdown.fill")
+                .font(.caption)
+                .foregroundStyle(.white)
+                .padding(5)
+                .background(Circle().fill(Color.red.opacity(0.7)))
+        }
+        .sheet(isPresented: $showSheet) {
+            FeedbackSubmitSheet(screen: screen, feature: feature, element: element)
+        }
+    }
+}
+
+struct FeedbackSubmitSheet: View {
+    let screen: String
+    let feature: String
+    let element: String
+
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
+    @State private var notes = ""
+    @State private var priority: FeedbackPriority = .medium
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Context") {
+                    LabeledContent("Screen", value: screen)
+                    LabeledContent("Feature", value: feature)
+                    LabeledContent("Element", value: element)
+                }
+
+                Section("Notes") {
+                    TextEditor(text: $notes)
+                        .focused($focused)
+                        .frame(minHeight: 80)
+                }
+
+                Section("Priority") {
+                    Picker("Priority", selection: $priority) {
+                        ForEach(FeedbackPriority.allCases, id: \.self) { p in
+                            Text("\(p.emoji) \(p.rawValue)").tag(p)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                }
+            }
+            .navigationTitle("Submit Feedback")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Save") { save() }
+                        .fontWeight(.semibold)
+                }
+            }
+            .onAppear { focused = true }
+        }
+    }
+
+    private func save() {
+        let entry = FeedbackEntry(
+            screenContext: screen,
+            featureContext: feature,
+            elementContext: element,
+            notes: notes,
+            priority: priority
+        )
+        modelContext.insert(entry)
+        dismiss()
+    }
+}
+
+// MARK: — ViewModifier for developer feedback overlays
+
+struct DeveloperFeedbackOverlay: ViewModifier {
+    let isActive: Bool
+    let screen: String
+    let feature: String
+    let element: String
+
+    func body(content: Content) -> some View {
+        if isActive {
+            content.overlay(alignment: .topTrailing) {
+                DeveloperFeedbackButton(screen: screen, feature: feature, element: element)
+                    .padding(4)
+            }
+        } else {
+            content
+        }
+    }
+}
+
+extension View {
+    func developerFeedbackOverlay(isActive: Bool, screen: String, feature: String, element: String) -> some View {
+        modifier(DeveloperFeedbackOverlay(isActive: isActive, screen: screen, feature: feature, element: element))
+    }
+}
