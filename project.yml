@@ -81,12 +81,6 @@ targets:
               UIPrerenderedIcon: false
     entitlements:
       path: Lumio/Supporting Files/Lumio.entitlements
-      properties:
-        com.apple.developer.icloud-services:
-          - CloudDocuments
-        com.apple.developer.icloud-container-identifiers:
-          - iCloud.com.johannesemmrich.lumio
-        aps-environment: development
     dependencies:
       - target: LumioDynamicIsland
         embed: true
