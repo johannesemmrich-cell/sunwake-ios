@@ -97,6 +97,9 @@ struct DeveloperModeView: View {
     @EnvironmentObject private var appState: AppState
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \FeedbackEntry.timestamp, order: .reverse) private var feedbackEntries: [FeedbackEntry]
+    @Query(sort: \DevTodoItem.createdAt, order: .forward) private var todoItems: [DevTodoItem]
+
+    @State private var showAddTodo = false
 
     var body: some View {
         List {
@@ -105,6 +108,43 @@ struct DeveloperModeView: View {
                     .foregroundStyle(.green)
                 Label("All Premium features unlocked", systemImage: "star.fill")
                     .foregroundStyle(Color.lumioAccent)
+            }
+
+            Section("To-Do (\(todoItems.count))") {
+                if todoItems.isEmpty {
+                    Text("Noch keine Einträge.")
+                        .font(LumioTypography.caption)
+                        .foregroundStyle(.secondary)
+                }
+                ForEach(todoItems) { item in
+                    HStack(spacing: 12) {
+                        Button {
+                            item.isCompleted.toggle()
+                        } label: {
+                            Image(systemName: item.isCompleted ? "checkmark.circle.fill" : "circle")
+                                .foregroundStyle(item.isCompleted ? .green : .secondary)
+                                .font(.title3)
+                        }
+                        .buttonStyle(.plain)
+                        Text(item.title)
+                            .font(LumioTypography.callout)
+                            .strikethrough(item.isCompleted, color: .secondary)
+                            .foregroundStyle(item.isCompleted ? .secondary : .primary)
+                        Spacer()
+                    }
+                    .padding(.vertical, 2)
+                }
+                .onDelete { offsets in
+                    for index in offsets {
+                        modelContext.delete(todoItems[index])
+                    }
+                }
+                Button {
+                    showAddTodo = true
+                } label: {
+                    Label("Neues To-Do", systemImage: "plus.circle")
+                        .foregroundStyle(Color.lumioAccent)
+                }
             }
 
             Section("Feedback Log (\(feedbackEntries.count))") {
@@ -129,12 +169,54 @@ struct DeveloperModeView: View {
         .navigationTitle("Developer Mode")
         .listStyle(.insetGrouped)
         .toolbar {
-            if !feedbackEntries.isEmpty {
+            if !feedbackEntries.isEmpty || !todoItems.isEmpty {
                 ToolbarItem(placement: .topBarTrailing) {
                     EditButton()
                 }
             }
         }
+        .sheet(isPresented: $showAddTodo) {
+            AddDevTodoSheet(isPresented: $showAddTodo)
+        }
+    }
+}
+
+// MARK: — Add Todo Sheet
+
+struct AddDevTodoSheet: View {
+    @Binding var isPresented: Bool
+    @Environment(\.modelContext) private var modelContext
+
+    @State private var title = ""
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Aufgabe") {
+                    TextField("Titel", text: $title)
+                        .focused($focused)
+                }
+            }
+            .navigationTitle("Neues To-Do")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Abbrechen") { isPresented = false }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Hinzufügen") {
+                        guard !title.trimmingCharacters(in: .whitespaces).isEmpty else { return }
+                        modelContext.insert(DevTodoItem(title: title.trimmingCharacters(in: .whitespaces)))
+                        isPresented = false
+                    }
+                    .fontWeight(.semibold)
+                    .disabled(title.trimmingCharacters(in: .whitespaces).isEmpty)
+                }
+            }
+            .onAppear { focused = true }
+        }
+        .presentationDetents([.fraction(0.35)])
     }
 }
 

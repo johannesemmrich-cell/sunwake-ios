@@ -9,6 +9,7 @@ struct SettingsView: View {
     @State private var versionTapCount = 0
     @State private var showDeveloperUnlock = false
     @State private var showPaywall = false
+    @State private var showResetOnboardingConfirm = false
     @State private var notificationHour: Int = UserDefaults.standard.integer(forKey: "notificationHour") == 0 ? 7 : UserDefaults.standard.integer(forKey: "notificationHour")
     @State private var notificationMinute: Int = UserDefaults.standard.integer(forKey: "notificationMinute")
 
@@ -67,6 +68,12 @@ struct SettingsView: View {
                     NavigationLink(destination: PrivacyView()) {
                         Label("Privacy", systemImage: "hand.raised")
                     }
+                    Button {
+                        showResetOnboardingConfirm = true
+                    } label: {
+                        Label("Onboarding wiederholen", systemImage: "arrow.counterclockwise")
+                            .foregroundStyle(.primary)
+                    }
                 }
 
                 // Developer Mode entry (hidden)
@@ -108,6 +115,25 @@ struct SettingsView: View {
         }
         .sheet(isPresented: $showPaywall) {
             PaywallView()
+        }
+        .confirmationDialog(
+            "Onboarding wiederholen?",
+            isPresented: $showResetOnboardingConfirm,
+            titleVisibility: .visible
+        ) {
+            Button("Onboarding starten", role: .destructive) {
+                resetOnboarding()
+            }
+            Button("Abbrechen", role: .cancel) {}
+        } message: {
+            Text("Die App startet das Onboarding erneut. Deine Daten bleiben erhalten.")
+        }
+    }
+
+    private func resetOnboarding() {
+        UserDefaults.standard.set(false, forKey: UserDefaultsKey.hasCompletedOnboarding)
+        withAnimation(.easeInOut(duration: 0.5)) {
+            appState.hasCompletedOnboarding = false
         }
     }
 
