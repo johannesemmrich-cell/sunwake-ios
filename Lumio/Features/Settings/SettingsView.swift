@@ -18,10 +18,13 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             List {
-                // Calendar
+                // Calendar & Reminders
                 Section("Calendar") {
                     NavigationLink(destination: CalendarSettingsView()) {
                         Label("Connected Calendars", systemImage: "calendar")
+                    }
+                    NavigationLink(destination: ReminderSettingsView()) {
+                        Label("Erinnerungen", systemImage: "checklist")
                     }
                 }
 

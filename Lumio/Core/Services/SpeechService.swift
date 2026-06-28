@@ -16,6 +16,7 @@ final class SpeechService: NSObject, ObservableObject {
     private var currentUtterance: AVSpeechUtterance?
     private var lastProgressUpdate: Double = -1
     private let liveActivityService = LiveActivityService()
+    private var currentAccentColorHex: String = "FF9500"
 
     override init() {
         super.init()
@@ -26,10 +27,10 @@ final class SpeechService: NSObject, ObservableObject {
 
     func speak(_ items: [SpeechItem], accentColorHex: String = "FF9500") {
         guard !items.isEmpty else { return }
+        currentAccentColorHex = accentColorHex
         queue = items
         currentIndex = 0
         speakCurrent()
-        // Start Dynamic Island
         liveActivityService.startActivity(
             totalEvents: items.count,
             firstEvent: items[0].title,
@@ -42,20 +43,8 @@ final class SpeechService: NSObject, ObservableObject {
         synthesizer.pauseSpeaking(at: .word)
         isPaused = true
         isPlaying = false
-        guard currentIndex < queue.count else { return }
-        let title = queue[currentIndex].title
-        let next = currentIndex + 1 < queue.count ? queue[currentIndex + 1].title : nil
-        Task {
-            await liveActivityService.update(
-                currentTitle: title,
-                currentTime: "",
-                nextTitle: next,
-                nextTime: nil as String?,
-                isPlaying: false,
-                progress: progress,
-                index: currentIndex
-            )
-        }
+        // Dismiss the Dynamic Island immediately on pause so it doesn't linger
+        Task { await liveActivityService.stop() }
     }
 
     func resume() {
@@ -66,20 +55,14 @@ final class SpeechService: NSObject, ObservableObject {
         }
         isPaused = false
         isPlaying = true
+        // Restart the Dynamic Island when resuming
         guard currentIndex < queue.count else { return }
-        let title = queue[currentIndex].title
-        let next: String? = currentIndex + 1 < queue.count ? queue[currentIndex + 1].title : nil
-        Task {
-            await liveActivityService.update(
-                currentTitle: title,
-                currentTime: "",
-                nextTitle: next,
-                nextTime: nil as String?,
-                isPlaying: true,
-                progress: progress,
-                index: currentIndex
-            )
-        }
+        liveActivityService.startActivity(
+            totalEvents: queue.count,
+            firstEvent: queue[currentIndex].title,
+            firstTime: "",
+            accentColorHex: currentAccentColorHex
+        )
     }
 
     func stop() {
@@ -120,14 +103,14 @@ final class SpeechService: NSObject, ObservableObject {
         let item = queue[currentIndex]
         currentItemTitle = item.title
 
-        // Activate audio session right before each utterance so the route is fresh
         try? AVAudioSession.sharedInstance().setActive(true, options: .notifyOthersOnDeactivation)
 
         let utterance = AVSpeechUtterance(string: item.text)
         utterance.voice = bestVoice(for: item.language)
-        utterance.rate = AVSpeechUtteranceDefaultSpeechRate
+        utterance.rate = AVSpeechUtteranceDefaultSpeechRate * 0.95  // slightly measured for clarity
         utterance.pitchMultiplier = 1.0
         utterance.volume = 1.0
+        utterance.postUtteranceDelay = 0.25  // brief natural pause between items
         currentUtterance = utterance
         synthesizer.speak(utterance)
         isPlaying = true
@@ -135,29 +118,33 @@ final class SpeechService: NSObject, ObservableObject {
         updateNowPlayingInfo()
     }
 
-    // Picks the best natural-sounding downloaded voice for the given language code.
-    // Excludes old TTS-bundle Siri voices and novelty voices; prioritises Eloquence voices.
+    // Quality-first voice selection: premium > enhanced > default, then Eloquence > others.
+    // Excludes novelty voices and old compressed offline Siri bundles.
     private func bestVoice(for languageCode: String) -> AVSpeechSynthesisVoice? {
         let prefix = languageCode.prefix(2).lowercased()
         let all = AVSpeechSynthesisVoice.speechVoices()
 
-        // Filter: richtige Sprache, keine alten TTS-Bundle-Siri-Stimmen, keine Novelty-Stimmen
-        let matching = all.filter { voice in
-            voice.language.lowercased().hasPrefix(prefix) &&
-            !voice.identifier.lowercased().contains("com.apple.ttsbundle.siri") &&
-            !voice.identifier.lowercased().contains("novelty")
+        let candidates = all.filter { v in
+            v.language.lowercased().hasPrefix(prefix) &&
+            !v.identifier.lowercased().contains("novelty") &&
+            // Exclude old compressed offline bundles — they sound robotic
+            !v.identifier.lowercased().contains("com.apple.ttsbundle") ||
+            v.identifier.lowercased().contains("com.apple.ttsbundle.siri_")  // keep modern Siri neural ones
         }
 
-        // Sorting: Eloquence-Stimmen (com.apple.eloquence) immer zuerst, dann nach Quality-Level
-        let sorted = matching.sorted { lhs, rhs in
-            let lEloquence = lhs.identifier.lowercased().contains("eloquence")
-            let rEloquence = rhs.identifier.lowercased().contains("eloquence")
-            if lEloquence != rEloquence { return lEloquence }
+        let sorted = candidates.sorted { lhs, rhs in
+            // 1. Quality tier: premium (3) > enhanced (2) > default (1)
             if lhs.quality.rawValue != rhs.quality.rawValue {
                 return lhs.quality.rawValue > rhs.quality.rawValue
             }
+            // 2. Eloquence neural voices — most natural sounding
+            let lE = lhs.identifier.lowercased().contains("eloquence")
+            let rE = rhs.identifier.lowercased().contains("eloquence")
+            if lE != rE { return lE }
+            // 3. Prefer female for pleasant briefing delivery
             return lhs.gender == .female && rhs.gender != .female
         }
+
         return sorted.first ?? AVSpeechSynthesisVoice(language: languageCode)
     }
 

@@ -26,6 +26,7 @@
 		81FB4BB83169AF6006D8837D /* AIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3EB7BEF0A1A348E30B0C0E8F /* AIService.swift */; };
 		8DDDDF417373D782C6EAA739 /* LumioWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 380413F29FFBA82FBEB1A691 /* LumioWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		93D244780900F5CF50BB15FE /* AppIconPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29C097AA9094F740D4614C78 /* AppIconPickerView.swift */; };
+		A1B2C3D4E5F60718293A4B5C /* ReminderSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2C3D4E5F60718293A4B5C6D /* ReminderSettingsView.swift */; };
 		9526AD58F745FCA65D3A15C2 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B8BD392039AC572C861EFDE /* AppState.swift */; };
 		96893A54167533CF228F34A1 /* ChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CBA787B7689086AF4BFC7109 /* ChatView.swift */; };
 		9B8EF230AEE6C5783CB508F1 /* BriefingSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E43379C270CA2D23F0F965C /* BriefingSettingsView.swift */; };
@@ -107,6 +108,7 @@
 		1AA48C8AF90AC73A83391B04 /* SpeechService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechService.swift; sourceTree = "<group>"; };
 		22880EC8D849EB2BB1C4CF97 /* CalendarService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarService.swift; sourceTree = "<group>"; };
 		29C097AA9094F740D4614C78 /* AppIconPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppIconPickerView.swift; sourceTree = "<group>"; };
+		B2C3D4E5F60718293A4B5C6D /* ReminderSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderSettingsView.swift; sourceTree = "<group>"; };
 		2C64E3D180D9C05CE91BB795 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		34D698E53BE485BF711A70FC /* ThemeManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeManager.swift; sourceTree = "<group>"; };
 		380413F29FFBA82FBEB1A691 /* LumioWidgetExtension.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = LumioWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -355,6 +357,7 @@
 			isa = PBXGroup;
 			children = (
 				29C097AA9094F740D4614C78 /* AppIconPickerView.swift */,
+				B2C3D4E5F60718293A4B5C6D /* ReminderSettingsView.swift */,
 				7E43379C270CA2D23F0F965C /* BriefingSettingsView.swift */,
 				AA33BB44CC55DD66EE11FF22 /* BriefingScheduleView.swift */,
 				46838FB7998E4CAC71C736F7 /* DeveloperModeView.swift */,
@@ -581,6 +584,7 @@
 			files = (
 				81FB4BB83169AF6006D8837D /* AIService.swift in Sources */,
 				93D244780900F5CF50BB15FE /* AppIconPickerView.swift in Sources */,
+				A1B2C3D4E5F60718293A4B5C /* ReminderSettingsView.swift in Sources */,
 				9526AD58F745FCA65D3A15C2 /* AppState.swift in Sources */,
 				9B8EF230AEE6C5783CB508F1 /* BriefingSettingsView.swift in Sources */,
 				AB667F5E5453F047F5DE2589 /* CalendarService.swift in Sources */,

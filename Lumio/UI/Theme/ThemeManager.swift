@@ -62,7 +62,8 @@ let lumioAccentPalette: [(label: String, hex: String)] = [
 ]
 
 extension Color {
-    static let lumioAccent = Color("AccentColor")
+    // Dynamic: reads SwiftUI's tint color, which is set per-app via .tint(appState.accentColor)
+    static var lumioAccent: Color { .accentColor }
 
     init(hex hexString: String) {
         let hex = UInt32(hexString.trimmingCharacters(in: .init(charactersIn: "#")), radix: 16) ?? 0xFF9500

@@ -60,6 +60,25 @@ extension EKCalendar {
 
 // MARK: — Briefing Exclusion Store
 
+struct ReminderExclusionStore {
+    private static let key = "reminderExcludedCalendarIDs"
+
+    static var excludedIDs: Set<String> {
+        get { Set(UserDefaults.standard.stringArray(forKey: key) ?? []) }
+        set { UserDefaults.standard.set(Array(newValue), forKey: key) }
+    }
+
+    static func toggle(_ calendarID: String) {
+        var ids = excludedIDs
+        if ids.contains(calendarID) { ids.remove(calendarID) } else { ids.insert(calendarID) }
+        excludedIDs = ids
+    }
+
+    static func isExcluded(_ calendarID: String) -> Bool {
+        excludedIDs.contains(calendarID)
+    }
+}
+
 struct BriefingExclusionStore {
     private static let key = "briefingExcludedCalendarIDs"
 
@@ -144,10 +163,12 @@ final class CalendarService: ObservableObject {
         // EKReminder objects are only safe to access on the main thread (the event store's thread).
         // The fetchReminders callback fires on an arbitrary background thread — do NOT
         // touch any EKReminder properties there. Dispatch to main first, then read properties.
+        let excluded = ReminderExclusionStore.excludedIDs
         let items: [ReminderItem] = await withCheckedContinuation { (continuation: CheckedContinuation<[ReminderItem], Never>) in
             store.fetchReminders(matching: predicate) { ekReminders in
                 DispatchQueue.main.async {
                     let mapped = (ekReminders ?? [])
+                        .filter { !excluded.contains($0.calendar.calendarIdentifier) }
                         .sorted { ($0.dueDateComponents?.date ?? .distantFuture) < ($1.dueDateComponents?.date ?? .distantFuture) }
                         .map { r -> ReminderItem in
                             ReminderItem(
@@ -217,6 +238,10 @@ final class CalendarService: ObservableObject {
 
     func availableCalendars() -> [EKCalendar] {
         store.calendars(for: .event)
+    }
+
+    func availableReminderCalendars() -> [EKCalendar] {
+        store.calendars(for: .reminder)
     }
 }
 
