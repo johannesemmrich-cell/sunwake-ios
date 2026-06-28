@@ -48,6 +48,7 @@ struct ChatView: View {
 
             Divider()
             ChatInputBar(text: $viewModel.inputText, isThinking: viewModel.isThinking, focused: $inputFocused) {
+                HapticFeedback.impact(.light)
                 Task { await viewModel.sendMessage() }
             }
         }

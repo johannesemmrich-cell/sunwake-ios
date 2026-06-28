@@ -2,6 +2,35 @@ import SwiftUI
 
 private struct SlotID: Identifiable { let id: Int }
 
+// MARK: — TopBarAction
+
+enum TopBarAction: String, CaseIterable {
+    case calendar = "calendar"
+    case chat = "chat_shortcut"
+    case refresh = "refresh"
+    case none = "none"
+
+    var icon: String {
+        switch self {
+        case .calendar: return "calendar"
+        case .chat:     return "bubble.left.fill"
+        case .refresh:  return "arrow.clockwise"
+        case .none:     return "minus"
+        }
+    }
+
+    var label: String {
+        switch self {
+        case .calendar: return "Kalender"
+        case .chat:     return "Chat"
+        case .refresh:  return "Aktualisieren"
+        case .none:     return "Leer"
+        }
+    }
+}
+
+// MARK: — AppLayoutConfigView
+
 struct AppLayoutConfigView: View {
     @EnvironmentObject private var appState: AppState
 
@@ -11,12 +40,16 @@ struct AppLayoutConfigView: View {
     @State private var slot3: AppTab = .settings
     @State private var editingSlot: SlotID? = nil
 
+    @State private var topSlot0: TopBarAction = .calendar
+    @State private var topSlot1: TopBarAction = .refresh
+    @State private var editingTopSlot: SlotID? = nil
+    @State private var showResetConfirmation = false
+
     var body: some View {
         ScrollView {
             VStack(spacing: 28) {
                 phonePreview
                 accentColorSection
-                tabIconColorsSection
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 24)
@@ -24,21 +57,64 @@ struct AppLayoutConfigView: View {
         .background(Color(uiColor: .systemGroupedBackground))
         .navigationTitle("App-Layout")
         .navigationBarTitleDisplayMode(.large)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button("Zurücksetzen") { showResetConfirmation = true }
+                    .font(LumioTypography.body)
+            }
+            if appState.isDeveloperModeActive {
+                ToolbarItem(placement: .topBarLeading) {
+                    DeveloperFeedbackButton(screen: "Settings", feature: "App Layout", element: "Toolbar")
+                }
+            }
+        }
+        .confirmationDialog("Design zurücksetzen?", isPresented: $showResetConfirmation, titleVisibility: .visible) {
+            Button("Auf Standard zurücksetzen", role: .destructive) {
+                HapticFeedback.impact(.medium)
+                withAnimation(.spring(duration: 0.3)) {
+                    appState.accentColorHex = "FF9500"
+                    appState.topBarActions = ["calendar", "refresh"]
+                    appState.tabOrder = AppTab.allCases
+                    loadSlots()
+                }
+            }
+            Button("Abbrechen", role: .cancel) {}
+        } message: {
+            Text("Akzentfarbe, Tab-Reihenfolge und Toolbar-Aktionen werden auf die Standardwerte zurückgesetzt.")
+        }
         .onAppear { loadSlots() }
         .sheet(item: $editingSlot) { slot in
             TabPickerSheet(
                 currentTab: currentSlots[slot.id],
                 onSelect: { newTab in
-                    let slots = [slot0, slot1, slot2, slot3]
+                    let oldSlots = [slot0, slot1, slot2, slot3]
                     let index = slot.id
+                    var newSlots = oldSlots
+                    if let existingIndex = oldSlots.firstIndex(of: newTab), existingIndex != index {
+                        newSlots[existingIndex] = oldSlots[index]
+                    }
+                    newSlots[index] = newTab
                     withAnimation(.spring(duration: 0.2)) {
-                        if let existingIndex = slots.firstIndex(of: newTab), existingIndex != index {
-                            setSlot(existingIndex, to: slots[index])
-                        }
-                        setSlot(index, to: newTab)
-                        appState.tabOrder = [slot0, slot1, slot2, slot3]
+                        slot0 = newSlots[0]; slot1 = newSlots[1]
+                        slot2 = newSlots[2]; slot3 = newSlots[3]
+                        appState.tabOrder = newSlots
                     }
                     editingSlot = nil
+                }
+            )
+            .presentationDetents([.fraction(0.45)])
+            .presentationDragIndicator(.visible)
+            .presentationCornerRadius(24)
+        }
+        .sheet(item: $editingTopSlot) { slot in
+            TopBarPickerSheet(
+                currentAction: slot.id == 0 ? topSlot0 : topSlot1,
+                onSelect: { action in
+                    withAnimation(.spring(duration: 0.2)) {
+                        if slot.id == 0 { topSlot0 = action } else { topSlot1 = action }
+                        appState.topBarActions = [topSlot0.rawValue, topSlot1.rawValue]
+                    }
+                    editingTopSlot = nil
                 }
             )
             .presentationDetents([.fraction(0.45)])
@@ -81,6 +157,17 @@ struct AppLayoutConfigView: View {
                         .frame(width: 60, height: 10)
                         .padding(.top, 10)
 
+                    // Top bar area with configurable action buttons
+                    HStack {
+                        Spacer()
+                        HStack(spacing: 6) {
+                            topSlotButton(index: 0)
+                            topSlotButton(index: 1)
+                        }
+                        .padding(.trailing, 8)
+                        .padding(.top, 4)
+                    }
+
                     // Content placeholders
                     VStack(spacing: 6) {
                         RoundedRectangle(cornerRadius: 8)
@@ -99,7 +186,7 @@ struct AppLayoutConfigView: View {
                             .padding(.trailing, 20)
                     }
                     .padding(.horizontal, 16)
-                    .padding(.top, 16)
+                    .padding(.top, 8)
 
                     Spacer()
 
@@ -129,9 +216,27 @@ struct AppLayoutConfigView: View {
     }
 
     @ViewBuilder
+    private func topSlotButton(index: Int) -> some View {
+        let action = index == 0 ? topSlot0 : topSlot1
+        Button {
+            editingTopSlot = SlotID(id: index)
+        } label: {
+            Image(systemName: action.icon)
+                .font(.system(size: 9, weight: .medium))
+                .foregroundStyle(appState.accentColor)
+                .frame(width: 20, height: 20)
+                .background(
+                    RoundedRectangle(cornerRadius: 5, style: .continuous)
+                        .fill(appState.accentColor.opacity(0.12))
+                )
+        }
+        .buttonStyle(.plain)
+    }
+
+    @ViewBuilder
     private func tabSlotButton(index: Int) -> some View {
         let tab = currentSlots[index]
-        let color = appState.iconColor(for: tab)
+        let color = appState.accentColor
         Button {
             editingSlot = SlotID(id: index)
         } label: {
@@ -163,75 +268,6 @@ struct AppLayoutConfigView: View {
         }
     }
 
-    // MARK: — Tab icon colors
-
-    private var tabIconColorsSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            sectionHeader("Tab-Icon-Farben", icon: "square.grid.2x2")
-
-            VStack(spacing: 1) {
-                ForEach(currentSlots, id: \.self) { tab in
-                    tabIconColorRow(tab: tab)
-                }
-            }
-            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-        }
-    }
-
-    @ViewBuilder
-    private func tabIconColorRow(tab: AppTab) -> some View {
-        let currentHex = appState.tabIconColorHexes[tab.rawValue] ?? appState.accentColorHex
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 10) {
-                Image(systemName: tab.icon)
-                    .font(.body.weight(.medium))
-                    .foregroundStyle(appState.iconColor(for: tab))
-                    .frame(width: 24)
-                Text(tab.fullLabel)
-                    .font(LumioTypography.callout)
-                Spacer()
-                Button {
-                    appState.tabIconColorHexes.removeValue(forKey: tab.rawValue)
-                } label: {
-                    Text("Reset")
-                        .font(LumioTypography.caption)
-                        .foregroundStyle(appState.tabIconColorHexes[tab.rawValue] == nil ? .tertiary : .secondary)
-                }
-                .disabled(appState.tabIconColorHexes[tab.rawValue] == nil)
-            }
-            .padding(.top, 12)
-            .padding(.horizontal, 16)
-
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(lumioAccentPalette, id: \.hex) { item in
-                        let isSelected = currentHex == item.hex
-                        Circle()
-                            .fill(Color(hex: item.hex))
-                            .frame(width: 28, height: 28)
-                            .overlay(
-                                Circle().strokeBorder(isSelected ? Color.primary : Color.clear, lineWidth: 2)
-                                    .padding(2)
-                            )
-                            .overlay(
-                                isSelected ? Image(systemName: "checkmark")
-                                    .font(.system(size: 10, weight: .bold))
-                                    .foregroundStyle(.white) : nil
-                            )
-                            .onTapGesture {
-                                withAnimation(.spring(duration: 0.2)) {
-                                    appState.tabIconColorHexes[tab.rawValue] = item.hex
-                                }
-                            }
-                    }
-                }
-                .padding(.horizontal, 16)
-                .padding(.bottom, 12)
-            }
-        }
-        .background(Color(uiColor: .secondarySystemBackground))
-    }
-
     // MARK: — Helpers
 
     private var currentSlots: [AppTab] { [slot0, slot1, slot2, slot3] }
@@ -251,6 +287,10 @@ struct AppLayoutConfigView: View {
         slot1 = order.indices.contains(1) ? order[1] : .library
         slot2 = order.indices.contains(2) ? order[2] : .chat
         slot3 = order.indices.contains(3) ? order[3] : .settings
+
+        let actions = appState.topBarActions
+        topSlot0 = TopBarAction(rawValue: actions.indices.contains(0) ? actions[0] : "calendar") ?? .calendar
+        topSlot1 = TopBarAction(rawValue: actions.indices.contains(1) ? actions[1] : "refresh") ?? .refresh
     }
 
     @ViewBuilder
@@ -260,6 +300,7 @@ struct AppLayoutConfigView: View {
             .foregroundStyle(.secondary)
             .textCase(.uppercase)
             .kerning(0.5)
+            .padding(.top, 4)
     }
 }
 
@@ -280,13 +321,14 @@ private struct TabPickerSheet: View {
             VStack(spacing: 1) {
                 ForEach(AppTab.allCases, id: \.self) { tab in
                     Button {
+                        HapticFeedback.selection()
                         onSelect(tab)
                     } label: {
                         HStack(spacing: 14) {
                             ZStack {
                                 RoundedRectangle(cornerRadius: 8, style: .continuous)
                                     .fill(tab == currentTab
-                                          ? appState.iconColor(for: tab)
+                                          ? appState.accentColor
                                           : Color.secondary.opacity(0.12))
                                     .frame(width: 34, height: 34)
                                 Image(systemName: tab.icon)
@@ -303,7 +345,7 @@ private struct TabPickerSheet: View {
                             if tab == currentTab {
                                 Image(systemName: "checkmark")
                                     .font(.body.weight(.semibold))
-                                    .foregroundStyle(appState.iconColor(for: tab))
+                                    .foregroundStyle(appState.accentColor)
                             }
                         }
                         .padding(.horizontal, 16)
@@ -317,6 +359,60 @@ private struct TabPickerSheet: View {
             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             .padding(.horizontal, 20)
 
+            Spacer()
+        }
+        .background(Color(uiColor: .systemGroupedBackground))
+    }
+}
+
+// MARK: — Top Bar Picker Sheet
+
+private struct TopBarPickerSheet: View {
+    @EnvironmentObject private var appState: AppState
+    let currentAction: TopBarAction
+    let onSelect: (TopBarAction) -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Text("Toolbar-Aktion auswählen")
+                .font(LumioTypography.headline.weight(.semibold))
+                .padding(.top, 24)
+                .padding(.bottom, 16)
+
+            VStack(spacing: 1) {
+                ForEach(TopBarAction.allCases, id: \.self) { action in
+                    Button { HapticFeedback.selection(); onSelect(action) } label: {
+                        HStack(spacing: 14) {
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                    .fill(action == currentAction
+                                          ? appState.accentColor
+                                          : Color.secondary.opacity(0.12))
+                                    .frame(width: 34, height: 34)
+                                Image(systemName: action.icon)
+                                    .font(.body.weight(.medium))
+                                    .foregroundStyle(action == currentAction ? .white : .primary)
+                            }
+                            Text(action.label)
+                                .font(LumioTypography.body)
+                                .foregroundStyle(.primary)
+                            Spacer()
+                            if action == currentAction {
+                                Image(systemName: "checkmark")
+                                    .font(.body.weight(.semibold))
+                                    .foregroundStyle(appState.accentColor)
+                            }
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
+                        .background(Color(uiColor: .secondarySystemBackground))
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .padding(.horizontal, 20)
             Spacer()
         }
         .background(Color(uiColor: .systemGroupedBackground))
@@ -354,6 +450,7 @@ private struct ColorPaletteGrid: View {
                         .foregroundStyle(isSelected ? .primary : .secondary)
                 }
                 .onTapGesture {
+                    HapticFeedback.selection()
                     withAnimation(.spring(duration: 0.2)) { selectedHex = item.hex }
                 }
             }

@@ -252,7 +252,10 @@ struct DayButton: View {
     private var isToday: Bool { date.isToday }
 
     var body: some View {
-        Button(action: action) {
+        Button {
+            HapticFeedback.selection()
+            action()
+        } label: {
             VStack(spacing: 5) {
                 Text(date.formatted(.dateTime.weekday(.narrow)))
                     .font(.system(size: 11, weight: .medium))
@@ -432,6 +435,9 @@ struct EventDetailSheet: View {
     @State private var draftNotes: String = ""
     @State private var draftKeywords: String = ""
     @State private var showAIChat = false
+    @State private var showDeleteConfirm = false
+
+    private let calendarService = CalendarService()
 
     init(event: CalendarEvent) {
         self.event = event
@@ -640,10 +646,31 @@ struct EventDetailSheet: View {
                     Button("Schließen") { dismiss() }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Speichern") { saveNotes() }
-                        .fontWeight(.semibold)
-                        .disabled(!hasChanges)
+                    HStack(spacing: 8) {
+                        if hasChanges {
+                            Button("Speichern") { saveNotes() }
+                                .fontWeight(.semibold)
+                        }
+                        Button(role: .destructive) {
+                            showDeleteConfirm = true
+                        } label: {
+                            Image(systemName: "trash")
+                                .foregroundStyle(.red)
+                        }
+                    }
                 }
+            }
+            .confirmationDialog("Termin löschen?", isPresented: $showDeleteConfirm, titleVisibility: .visible) {
+                Button("Löschen", role: .destructive) {
+                    HapticFeedback.impact(.medium)
+                    Task {
+                        try? await calendarService.deleteEvent(identifier: event.id)
+                        dismiss()
+                    }
+                }
+                Button("Abbrechen", role: .cancel) {}
+            } message: {
+                Text("Der Termin '\(event.title)' wird dauerhaft aus dem Kalender entfernt.")
             }
             .onAppear {
                 draftNotes = existingNote?.customNotes ?? ""
@@ -865,7 +892,9 @@ final class CalendarViewModel: ObservableObject {
 
     func setup() async {
         let _ = await calendarService.requestAccess()
+        let excluded = BriefingExclusionStore.excludedIDs
         availableCalendars = calendarService.availableCalendars()
+            .filter { !excluded.contains($0.calendarIdentifier) }
         await fetchEvents()
     }
 
@@ -873,7 +902,8 @@ final class CalendarViewModel: ObservableObject {
         isLoading = true
         defer { isLoading = false }
         await calendarService.fetchEvents(for: selectedDate)
-        events = calendarService.todayEvents
+        let excluded = BriefingExclusionStore.excludedIDs
+        events = calendarService.todayEvents.filter { !excluded.contains($0.calendarIdentifier) }
     }
 
     func toggleCalendar(_ id: String) {
@@ -911,6 +941,8 @@ struct AddEventSheet: View {
     @State private var endTime: Date
     @State private var errorMessage: String?
     @State private var isSaving = false
+    @State private var availableCalendars: [EKCalendar] = []
+    @State private var selectedCalendarID: String = ""
 
     private let calendarService = CalendarService()
 
@@ -945,6 +977,21 @@ struct AddEventSheet: View {
                         DatePicker("Datum", selection: $startTime, displayedComponents: .date)
                     }
                 }
+                if !availableCalendars.isEmpty {
+                    Section("Kalender") {
+                        Picker("Kalender", selection: $selectedCalendarID) {
+                            ForEach(availableCalendars, id: \.calendarIdentifier) { cal in
+                                HStack(spacing: 6) {
+                                    Circle()
+                                        .fill(Color(cgColor: cal.cgColor))
+                                        .frame(width: 10, height: 10)
+                                    Text(cal.title)
+                                }
+                                .tag(cal.calendarIdentifier)
+                            }
+                        }
+                    }
+                }
                 if let error = errorMessage {
                     Section {
                         Text(error)
@@ -955,6 +1002,7 @@ struct AddEventSheet: View {
             }
             .navigationTitle("Neuer Termin")
             .navigationBarTitleDisplayMode(.inline)
+            .task { loadCalendars() }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("Abbrechen") { dismiss() }
@@ -988,12 +1036,24 @@ struct AddEventSheet: View {
         }
 
         do {
-            try await calendarService.addEvent(title: trimmed, startDate: start, endDate: end)
+            try await calendarService.addEvent(title: trimmed, startDate: start, endDate: end, calendarIdentifier: selectedCalendarID.isEmpty ? nil : selectedCalendarID)
+            HapticFeedback.success()
             onSave()
             dismiss()
         } catch {
+            HapticFeedback.error()
             errorMessage = error.localizedDescription
             isSaving = false
+        }
+    }
+
+    private func loadCalendars() {
+        let store = EKEventStore()
+        if EKEventStore.authorizationStatus(for: .event) == .fullAccess {
+            availableCalendars = store.calendars(for: .event).sorted { $0.title < $1.title }
+            if let defaultCal = store.defaultCalendarForNewEvents {
+                selectedCalendarID = defaultCal.calendarIdentifier
+            }
         }
     }
 }

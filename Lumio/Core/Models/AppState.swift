@@ -21,22 +21,11 @@ final class AppState: ObservableObject {
     @Published var accentColorHex: String {
         didSet { UserDefaults.standard.set(accentColorHex, forKey: UserDefaultsKey.accentColorHex) }
     }
-    @Published var tabIconColorHexes: [String: String] {
-        didSet {
-            UserDefaults.standard.set(tabIconColorHexes, forKey: UserDefaultsKey.tabIconColorHexes)
-        }
+    @Published var topBarActions: [String] {
+        didSet { UserDefaults.standard.set(topBarActions, forKey: UserDefaultsKey.topBarActions) }
     }
 
     var accentColor: Color { Color(hex: accentColorHex) }
-
-    func iconColor(for tab: AppTab) -> Color {
-        if let hex = tabIconColorHexes[tab.rawValue] { return Color(hex: hex) }
-        return accentColor
-    }
-
-    func setIconColor(_ color: Color, for tab: AppTab) {
-        tabIconColorHexes[tab.rawValue] = color.hexString
-    }
 
     var locale: Locale { Locale(identifier: selectedLanguage) }
 
@@ -57,7 +46,7 @@ final class AppState: ObservableObject {
         self.briefingLength = BriefingLength(rawValue: UserDefaults.standard.string(forKey: UserDefaultsKey.briefingLength) ?? "") ?? .medium
         self.briefingStyle = BriefingStyle(rawValue: UserDefaults.standard.string(forKey: UserDefaultsKey.briefingStyle) ?? "") ?? .friendly
         self.accentColorHex = UserDefaults.standard.string(forKey: UserDefaultsKey.accentColorHex) ?? "FF9500"
-        self.tabIconColorHexes = (UserDefaults.standard.dictionary(forKey: UserDefaultsKey.tabIconColorHexes) as? [String: String]) ?? [:]
+        self.topBarActions = UserDefaults.standard.stringArray(forKey: UserDefaultsKey.topBarActions) ?? ["calendar", "refresh"]
     }
 
     func completeOnboarding() {
@@ -104,7 +93,7 @@ enum UserDefaultsKey {
     static let briefingLength = "briefingLength"
     static let briefingStyle = "briefingStyle"
     static let accentColorHex = "accentColorHex"
-    static let tabIconColorHexes = "tabIconColorHexes"
+    static let topBarActions = "topBarActions"
 }
 
 // MARK: — Briefing Settings

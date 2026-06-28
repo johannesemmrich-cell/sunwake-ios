@@ -25,7 +25,7 @@ struct LibraryView: View {
                     List {
                         ForEach(folders) { folder in
                             NavigationLink(destination: FolderDetailView(folder: folder)) {
-                                FolderRow(folder: folder)
+                                FolderRow(folder: folder, accentColor: appState.accentColor)
                             }
                             .developerFeedbackOverlay(
                                 isActive: appState.isDeveloperModeActive,
@@ -47,6 +47,11 @@ struct LibraryView: View {
                         showNewFolderSheet = true
                     } label: {
                         Image(systemName: "folder.badge.plus")
+                    }
+                }
+                if appState.isDeveloperModeActive {
+                    ToolbarItem(placement: .topBarLeading) {
+                        DeveloperFeedbackButton(screen: "Library", feature: "Folders", element: "Toolbar")
                     }
                 }
                 if !folders.isEmpty {
@@ -98,12 +103,13 @@ struct LibraryView: View {
 
 struct FolderRow: View {
     let folder: PDFFolder
+    let accentColor: Color
 
     var body: some View {
         HStack(spacing: 14) {
             Image(systemName: "folder.fill")
                 .font(.title2)
-                .foregroundStyle(Color.lumioAccent)
+                .foregroundStyle(accentColor)
                 .frame(width: 36)
 
             VStack(alignment: .leading, spacing: 3) {
@@ -167,6 +173,11 @@ struct FolderDetailView: View {
                     Image(systemName: "plus")
                 }
             }
+            if appState.isDeveloperModeActive {
+                ToolbarItem(placement: .topBarLeading) {
+                    DeveloperFeedbackButton(screen: "Library", feature: "Folder Detail", element: "Toolbar")
+                }
+            }
         }
         .fileImporter(
             isPresented: $showFilePicker,
@@ -194,6 +205,7 @@ struct FolderDetailView: View {
                 into: folder,
                 isPremium: subscriptionManager.effectivelyPremium
             )
+            HapticFeedback.success()
             folder.documents.append(doc)
             modelContext.insert(doc)
         } catch {
@@ -321,6 +333,7 @@ struct NewFolderSheet: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Add") {
                         guard !name.trimmingCharacters(in: .whitespaces).isEmpty else { return }
+                        HapticFeedback.success()
                         onAdd(name.trimmingCharacters(in: .whitespaces))
                         dismiss()
                     }

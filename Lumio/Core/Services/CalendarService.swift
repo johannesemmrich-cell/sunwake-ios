@@ -138,6 +138,17 @@ final class CalendarService: ObservableObject {
         await fetchTodayEvents()
     }
 
+    func deleteEvent(identifier: String) async throws {
+        guard EKEventStore.authorizationStatus(for: .event) == .fullAccess else {
+            throw CalendarError.accessDenied
+        }
+        guard let event = store.event(withIdentifier: identifier) else {
+            throw CalendarError.eventNotFound
+        }
+        try store.remove(event, span: .thisEvent)
+        await fetchTodayEvents()
+    }
+
     func availableCalendars() -> [EKCalendar] {
         store.calendars(for: .event)
     }

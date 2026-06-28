@@ -53,6 +53,13 @@ struct BriefingSettingsView: View {
         }
         .navigationTitle("Briefing-Einstellungen")
         .listStyle(.insetGrouped)
+        .toolbar {
+            if appState.isDeveloperModeActive {
+                ToolbarItem(placement: .topBarLeading) {
+                    DeveloperFeedbackButton(screen: "Settings", feature: "Briefing Settings", element: "Toolbar")
+                }
+            }
+        }
     }
 }
 

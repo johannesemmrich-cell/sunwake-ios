@@ -14,6 +14,7 @@ final class SpeechService: NSObject, ObservableObject {
 
     private let synthesizer = AVSpeechSynthesizer()
     private var currentUtterance: AVSpeechUtterance?
+    private var lastProgressUpdate: Double = -1
     private let liveActivityService = LiveActivityService()
 
     override init() {
@@ -23,7 +24,7 @@ final class SpeechService: NSObject, ObservableObject {
         setupRemoteCommandCenter()
     }
 
-    func speak(_ items: [SpeechItem]) {
+    func speak(_ items: [SpeechItem], accentColorHex: String = "FF9500") {
         guard !items.isEmpty else { return }
         queue = items
         currentIndex = 0
@@ -32,7 +33,8 @@ final class SpeechService: NSObject, ObservableObject {
         liveActivityService.startActivity(
             totalEvents: items.count,
             firstEvent: items[0].title,
-            firstTime: ""
+            firstTime: "",
+            accentColorHex: accentColorHex
         )
     }
 
@@ -40,6 +42,20 @@ final class SpeechService: NSObject, ObservableObject {
         synthesizer.pauseSpeaking(at: .word)
         isPaused = true
         isPlaying = false
+        guard currentIndex < queue.count else { return }
+        let title = queue[currentIndex].title
+        let next = currentIndex + 1 < queue.count ? queue[currentIndex + 1].title : nil
+        Task {
+            await liveActivityService.update(
+                currentTitle: title,
+                currentTime: "",
+                nextTitle: next,
+                nextTime: nil as String?,
+                isPlaying: false,
+                progress: progress,
+                index: currentIndex
+            )
+        }
     }
 
     func resume() {
@@ -50,6 +66,20 @@ final class SpeechService: NSObject, ObservableObject {
         }
         isPaused = false
         isPlaying = true
+        guard currentIndex < queue.count else { return }
+        let title = queue[currentIndex].title
+        let next: String? = currentIndex + 1 < queue.count ? queue[currentIndex + 1].title : nil
+        Task {
+            await liveActivityService.update(
+                currentTitle: title,
+                currentTime: "",
+                nextTitle: next,
+                nextTime: nil as String?,
+                isPlaying: true,
+                progress: progress,
+                index: currentIndex
+            )
+        }
     }
 
     func stop() {
@@ -106,18 +136,23 @@ final class SpeechService: NSObject, ObservableObject {
     }
 
     // Picks the best natural-sounding downloaded voice for the given language code.
-    // Excludes Siri voices (they're tuned for commands, not narration) and novelty voices.
+    // Excludes old TTS-bundle Siri voices and novelty voices; prioritises Eloquence voices.
     private func bestVoice(for languageCode: String) -> AVSpeechSynthesisVoice? {
         let prefix = languageCode.prefix(2).lowercased()
-        let voices = AVSpeechSynthesisVoice.speechVoices()
-        let matching = voices.filter { voice in
+        let all = AVSpeechSynthesisVoice.speechVoices()
+
+        // Filter: richtige Sprache, keine alten TTS-Bundle-Siri-Stimmen, keine Novelty-Stimmen
+        let matching = all.filter { voice in
             voice.language.lowercased().hasPrefix(prefix) &&
-            !voice.identifier.lowercased().contains("siri") &&
-            !voice.identifier.lowercased().contains("novelty") &&
-            voice.gender != .unspecified
+            !voice.identifier.lowercased().contains("com.apple.ttsbundle.siri") &&
+            !voice.identifier.lowercased().contains("novelty")
         }
-        // Sort: premium (3) > enhanced (2) > default (1), then prefer female voices for narration
+
+        // Sorting: Eloquence-Stimmen (com.apple.eloquence) immer zuerst, dann nach Quality-Level
         let sorted = matching.sorted { lhs, rhs in
+            let lEloquence = lhs.identifier.lowercased().contains("eloquence")
+            let rEloquence = rhs.identifier.lowercased().contains("eloquence")
+            if lEloquence != rEloquence { return lEloquence }
             if lhs.quality.rawValue != rhs.quality.rawValue {
                 return lhs.quality.rawValue > rhs.quality.rawValue
             }
@@ -198,9 +233,12 @@ extension SpeechService: AVSpeechSynthesizerDelegate {
     nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, willSpeakRangeOfSpeechString characterRange: NSRange, utterance: AVSpeechUtterance) {
         let total = Double(utterance.speechString.count)
         guard total > 0 else { return }
-        let current = Double(characterRange.location)
+        let newProgress = Double(characterRange.location) / total
         Task { @MainActor [weak self] in
-            self?.progress = current / total
+            guard let self else { return }
+            guard abs(newProgress - self.lastProgressUpdate) >= 0.02 else { return }
+            self.lastProgressUpdate = newProgress
+            self.progress = newProgress
         }
     }
 }

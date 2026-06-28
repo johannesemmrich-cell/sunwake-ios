@@ -18,6 +18,7 @@ private let iconOptions: [AppIconOption] = [
 ]
 
 struct AppIconPickerView: View {
+    @EnvironmentObject private var appState: AppState
     @State private var currentIconName: String? = UIApplication.shared.alternateIconName
     @State private var isChanging = false
     @State private var errorMessage: String? = nil
@@ -49,6 +50,13 @@ struct AppIconPickerView: View {
         }
         .navigationTitle("App-Icon")
         .navigationBarTitleDisplayMode(.large)
+        .toolbar {
+            if appState.isDeveloperModeActive {
+                ToolbarItem(placement: .topBarLeading) {
+                    DeveloperFeedbackButton(screen: "Settings", feature: "App Icon Picker", element: "Toolbar")
+                }
+            }
+        }
     }
 
     private func applyIcon(_ option: AppIconOption) {
@@ -57,14 +65,17 @@ struct AppIconPickerView: View {
             errorMessage = "Dein Gerät unterstützt keine alternativen App-Icons."
             return
         }
+        HapticFeedback.impact(.medium)
         isChanging = true
         errorMessage = nil
         UIApplication.shared.setAlternateIconName(option.name) { error in
             DispatchQueue.main.async {
                 isChanging = false
                 if let error {
+                    HapticFeedback.error()
                     errorMessage = error.localizedDescription
                 } else {
+                    HapticFeedback.success()
                     currentIconName = option.name
                 }
             }
@@ -78,29 +89,36 @@ private struct IconCell: View {
     let isChanging: Bool
     let action: () -> Void
 
+    private var iconImage: UIImage? {
+        UIImage(named: option.name ?? "AppIcon")
+    }
+
     var body: some View {
         Button(action: action) {
             VStack(spacing: 8) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 22, style: .continuous)
-                        .fill(
-                            LinearGradient(
-                                colors: option.colors,
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
-                        )
-                        .frame(width: 76, height: 76)
-                        .shadow(color: option.colors.last?.opacity(0.4) ?? .clear, radius: 8, y: 4)
-
-                    Image(systemName: option.symbol)
-                        .font(.system(size: 30, weight: .medium))
-                        .foregroundStyle(.white.opacity(0.92))
-                        .symbolRenderingMode(.hierarchical)
+                Group {
+                    if let image = iconImage {
+                        Image(uiImage: image)
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(width: 76, height: 76)
+                            .clipShape(RoundedRectangle(cornerRadius: 17, style: .continuous))
+                    } else {
+                        RoundedRectangle(cornerRadius: 17, style: .continuous)
+                            .fill(LinearGradient(colors: option.colors, startPoint: .top, endPoint: .bottom))
+                            .frame(width: 76, height: 76)
+                            .overlay {
+                                Image(systemName: option.symbol)
+                                    .font(.system(size: 30, weight: .medium))
+                                    .foregroundStyle(.white.opacity(0.92))
+                                    .symbolRenderingMode(.hierarchical)
+                            }
+                    }
                 }
+                .shadow(color: .black.opacity(0.2), radius: 6, y: 3)
                 .overlay(
-                    RoundedRectangle(cornerRadius: 22, style: .continuous)
-                        .strokeBorder(isSelected ? Color.accentColor : Color.clear, lineWidth: 2.5)
+                    RoundedRectangle(cornerRadius: 17, style: .continuous)
+                        .strokeBorder(isSelected ? Color.accentColor : Color.clear, lineWidth: 3)
                 )
                 .overlay(alignment: .bottomTrailing) {
                     if isSelected {

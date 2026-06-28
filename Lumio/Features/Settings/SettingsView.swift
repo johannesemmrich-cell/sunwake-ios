@@ -124,6 +124,13 @@ struct SettingsView: View {
                 }
             }
             .listStyle(.insetGrouped)
+            .toolbar {
+                if appState.isDeveloperModeActive {
+                    ToolbarItem(placement: .topBarLeading) {
+                        DeveloperFeedbackButton(screen: "Settings", feature: "General", element: "Toolbar")
+                    }
+                }
+            }
             .navigationTitle("Settings")
         }
         .sheet(isPresented: $showDeveloperUnlock) {

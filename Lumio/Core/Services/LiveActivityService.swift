@@ -17,6 +17,7 @@ struct LumioBriefingAttributes: ActivityAttributes {
 
     var briefingDate: Date
     var totalEvents: Int
+    var accentColorHex: String
 }
 
 // MARK: — Live Activity Service
@@ -26,12 +27,13 @@ final class LiveActivityService: ObservableObject, @unchecked Sendable {
 
     private var currentActivity: Activity<LumioBriefingAttributes>?
 
-    @MainActor func startActivity(totalEvents: Int, firstEvent: String, firstTime: String) {
+    @MainActor func startActivity(totalEvents: Int, firstEvent: String, firstTime: String, accentColorHex: String) {
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
 
         let attributes = LumioBriefingAttributes(
             briefingDate: Calendar.current.startOfDay(for: Date()),
-            totalEvents: totalEvents
+            totalEvents: totalEvents,
+            accentColorHex: accentColorHex
         )
         let state = LumioBriefingAttributes.ContentState(
             currentItemTitle: firstEvent,

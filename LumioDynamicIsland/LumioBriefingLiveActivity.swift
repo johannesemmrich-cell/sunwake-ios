@@ -13,7 +13,7 @@ struct LumioBriefingWidget: Widget {
                 DynamicIslandExpandedRegion(.leading) {
                     HStack(spacing: 6) {
                         Image(systemName: "sun.horizon.fill")
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(Color(hex: context.attributes.accentColorHex))
                             .font(.caption)
                         Text("Lumio")
                             .font(.caption.weight(.semibold))
@@ -69,7 +69,7 @@ struct LumioBriefingWidget: Widget {
                 }
             } compactLeading: {
                 Image(systemName: "sun.horizon.fill")
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(Color(hex: context.attributes.accentColorHex))
                     .font(.caption)
             } compactTrailing: {
                 HStack(spacing: 3) {
@@ -84,11 +84,24 @@ struct LumioBriefingWidget: Widget {
                 }
             } minimal: {
                 Image(systemName: "sun.horizon.fill")
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(Color(hex: context.attributes.accentColorHex))
                     .font(.caption2)
             }
-            .keylineTint(.orange)
+            .keylineTint(Color(hex: context.attributes.accentColorHex))
         }
+    }
+}
+
+// MARK: — Color hex helper (widget-target copy)
+
+private extension Color {
+    init(hex hexString: String) {
+        let hex = UInt32(hexString.trimmingCharacters(in: .init(charactersIn: "#")), radix: 16) ?? 0xFF9500
+        self.init(
+            red:   Double((hex >> 16) & 0xFF) / 255,
+            green: Double((hex >> 8)  & 0xFF) / 255,
+            blue:  Double(hex         & 0xFF) / 255
+        )
     }
 }
 
@@ -101,10 +114,10 @@ struct LockScreenBriefingView: View {
         HStack(spacing: 14) {
             ZStack {
                 Circle()
-                    .fill(Color.orange.opacity(0.2))
+                    .fill(Color(hex: context.attributes.accentColorHex).opacity(0.2))
                     .frame(width: 44, height: 44)
                 Image(systemName: "sun.horizon.fill")
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(Color(hex: context.attributes.accentColorHex))
                     .font(.title3)
             }
 
@@ -126,7 +139,7 @@ struct LockScreenBriefingView: View {
 
             VStack(alignment: .trailing, spacing: 4) {
                 Image(systemName: context.state.isPlaying ? "waveform" : "pause.fill")
-                    .foregroundStyle(context.state.isPlaying ? Color.orange : .secondary)
+                    .foregroundStyle(context.state.isPlaying ? Color(hex: context.attributes.accentColorHex) : .secondary)
                     .symbolEffect(.variableColor, isActive: context.state.isPlaying)
                 Text("\(context.state.currentIndex + 1)/\(context.state.totalItems)")
                     .font(.caption2)

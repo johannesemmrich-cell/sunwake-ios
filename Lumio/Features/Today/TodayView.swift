@@ -24,7 +24,7 @@ struct TodayView: View {
                         .padding(.bottom, 28)
 
                         if viewModel.events.isEmpty && !viewModel.isLoadingEvents {
-                            EmptyDayView()
+                            EmptyDayView(accentColor: appState.accentColor)
                                 .padding(.horizontal, 20)
                         } else {
                             eventsSection
@@ -41,7 +41,7 @@ struct TodayView: View {
                     await viewModel.refresh()
                 }
 
-                PlayBarView(speechService: speechService, events: viewModel.events, language: appState.selectedLanguage)
+                PlayBarView(speechService: speechService, events: viewModel.events, language: appState.selectedLanguage, accentColor: appState.accentColor, accentColorHex: appState.accentColorHex)
                     .padding(.horizontal, 16)
                     .padding(.bottom, 20)
                     .shadow(color: .black.opacity(0.08), radius: 20, y: -4)
@@ -49,19 +49,21 @@ struct TodayView: View {
             .navigationTitle("Today")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    HStack(spacing: 4) {
-                        Button {
-                            showCalendar = true
-                        } label: {
-                            Image(systemName: "calendar")
+                ToolbarItemGroup(placement: .topBarTrailing) {
+                    ForEach(Array(appState.topBarActions.prefix(2)), id: \.self) { action in
+                        Group {
+                            switch action {
+                            case "calendar":
+                                Button { showCalendar = true } label: { Image(systemName: "calendar") }
+                            case "chat_shortcut":
+                                Button { appState.selectedTab = .chat } label: { Image(systemName: "bubble.left.fill") }
+                            case "refresh":
+                                Button { Task { await viewModel.refresh() } } label: { Image(systemName: "arrow.clockwise") }
+                                    .disabled(viewModel.isLoadingEvents)
+                            default:
+                                EmptyView()
+                            }
                         }
-                        Button {
-                            Task { await viewModel.refresh() }
-                        } label: {
-                            Image(systemName: "arrow.clockwise")
-                        }
-                        .disabled(viewModel.isLoadingEvents)
                     }
                 }
                 if appState.isDeveloperModeActive {
@@ -107,6 +109,7 @@ struct TodayView: View {
 // MARK: — Header
 
 struct TodayHeaderView: View {
+    @EnvironmentObject private var appState: AppState
     let summary: String
     let isGenerating: Bool
 
@@ -132,7 +135,7 @@ struct TodayHeaderView: View {
                         .font(LumioTypography.hero)
                 }
                 Spacer()
-                DayProgressRing()
+                DayProgressRing(accentColor: appState.accentColor)
             }
 
             if isGenerating {
@@ -162,6 +165,8 @@ struct TodayHeaderView: View {
 }
 
 struct DayProgressRing: View {
+    let accentColor: Color
+
     private var progress: Double {
         let now = Date()
         let cal = Calendar.current
@@ -176,7 +181,7 @@ struct DayProgressRing: View {
                 .stroke(Color.secondary.opacity(0.15), lineWidth: 3)
             Circle()
                 .trim(from: 0, to: progress)
-                .stroke(Color.lumioAccent, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                .stroke(accentColor, style: StrokeStyle(lineWidth: 3, lineCap: .round))
                 .rotationEffect(.degrees(-90))
             Image(systemName: "sun.max.fill")
                 .font(.caption.weight(.medium))
@@ -261,6 +266,8 @@ struct PlayBarView: View {
     @ObservedObject var speechService: SpeechService
     let events: [CalendarEvent]
     let language: String
+    let accentColor: Color
+    let accentColorHex: String
 
     var body: some View {
         HStack(spacing: 16) {
@@ -270,7 +277,7 @@ struct PlayBarView: View {
                         .font(LumioTypography.caption.weight(.semibold))
                         .lineLimit(1)
                     ProgressView(value: speechService.progress)
-                        .tint(Color.lumioAccent)
+                        .tint(accentColor)
                 } else {
                     Text("Play briefing")
                         .font(LumioTypography.callout.weight(.semibold))
@@ -284,6 +291,7 @@ struct PlayBarView: View {
             HStack(spacing: 12) {
                 if speechService.isPlaying || speechService.isPaused {
                     Button {
+                        HapticFeedback.impact(.light)
                         speechService.skipBackward()
                     } label: {
                         Image(systemName: "backward.fill")
@@ -292,31 +300,32 @@ struct PlayBarView: View {
                 }
 
                 Button {
+                    HapticFeedback.impact(.medium)
                     if speechService.isPlaying {
                         speechService.pause()
                     } else if speechService.isPaused {
                         speechService.resume()
                     } else {
-                        let items = events.map { event in
-                            SpeechItem(
-                                title: event.title,
-                                text: buildSpeechText(for: event),
-                                language: language == "de" ? "de-DE" : "en-US"
-                            )
-                        }
-                        speechService.speak(items)
+                        let narrativeText = buildNarrativeBriefing(events: events, language: language)
+                        let item = SpeechItem(
+                            title: "Briefing",
+                            text: narrativeText,
+                            language: language == "de" ? "de-DE" : "en-US"
+                        )
+                        speechService.speak([item], accentColorHex: accentColorHex)
                     }
                 } label: {
                     Image(systemName: speechService.isPlaying ? "pause.fill" : "play.fill")
                         .font(.title3.weight(.semibold))
                         .frame(width: 44, height: 44)
-                        .background(Color.lumioAccent)
+                        .background(accentColor)
                         .foregroundStyle(.white)
                         .clipShape(Circle())
                 }
 
                 if speechService.isPlaying || speechService.isPaused {
                     Button {
+                        HapticFeedback.impact(.light)
                         speechService.skipForward()
                     } label: {
                         Image(systemName: "forward.fill")
@@ -335,24 +344,93 @@ struct PlayBarView: View {
         )
     }
 
-    private func buildSpeechText(for event: CalendarEvent) -> String {
+    private func buildNarrativeBriefing(events: [CalendarEvent], language: String) -> String {
+        let isDE = language == "de"
         let fmt = DateFormatter()
         fmt.dateFormat = "HH:mm"
-        if event.isAllDay {
-            return "\(event.title). All day event."
+
+        guard !events.isEmpty else {
+            return isDE
+                ? "Guten Morgen! Du hast heute keine Termine eingetragen. Genieße den freien Tag!"
+                : "Good morning! You have no events scheduled for today. Enjoy your free day!"
         }
-        return "\(event.title), at \(fmt.string(from: event.startDate))."
+
+        let hour = Calendar.current.component(.hour, from: Date())
+        let greeting: String
+        if isDE {
+            switch hour {
+            case 5..<12: greeting = "Guten Morgen!"
+            case 12..<17: greeting = "Hallo!"
+            default: greeting = "Guten Abend!"
+            }
+        } else {
+            switch hour {
+            case 5..<12: greeting = "Good morning!"
+            case 12..<17: greeting = "Hello!"
+            default: greeting = "Good evening!"
+            }
+        }
+
+        var parts: [String] = []
+
+        // Intro
+        if isDE {
+            parts.append("\(greeting) Heute hast du \(events.count == 1 ? "einen Termin" : "\(events.count) Termine").")
+        } else {
+            parts.append("\(greeting) You have \(events.count == 1 ? "one event" : "\(events.count) events") today.")
+        }
+
+        // Events with natural transitions
+        for (index, event) in events.enumerated() {
+            let timeStr = event.isAllDay
+                ? (isDE ? "den ganzen Tag" : "all day")
+                : (isDE ? "um \(fmt.string(from: event.startDate)) Uhr" : "at \(fmt.string(from: event.startDate))")
+
+            let locationPart: String
+            if let loc = event.location, !loc.isEmpty {
+                locationPart = isDE ? ", in \(loc)," : ", at \(loc),"
+            } else {
+                locationPart = ""
+            }
+
+            let sentence: String
+            if index == 0 {
+                sentence = isDE
+                    ? "Dein Tag startet \(timeStr) mit \(event.title)\(locationPart)."
+                    : "Your day starts \(timeStr) with \(event.title)\(locationPart)."
+            } else if index == events.count - 1 {
+                sentence = isDE
+                    ? "Und zum Abschluss hast du \(timeStr) \(event.title)\(locationPart)."
+                    : "And to wrap up, you have \(event.title) \(timeStr)\(locationPart)."
+            } else {
+                let transitions = isDE
+                    ? ["Danach geht es", "Anschließend hast du", "Im Anschluss folgt"]
+                    : ["Then", "After that, you have", "Next up is"]
+                let transition = transitions[index % transitions.count]
+                sentence = isDE
+                    ? "\(transition) \(timeStr) weiter mit \(event.title)\(locationPart)."
+                    : "\(transition) \(event.title) \(timeStr)\(locationPart)."
+            }
+            parts.append(sentence)
+        }
+
+        // Outro
+        parts.append(isDE ? "Das war dein Briefing für heute — einen schönen Tag!" : "That's your briefing for today — have a great day!")
+
+        return parts.joined(separator: " ")
     }
 }
 
 // MARK: — Empty state
 
 struct EmptyDayView: View {
+    let accentColor: Color
+
     var body: some View {
         VStack(spacing: 16) {
             Image(systemName: "sparkles")
                 .font(.system(size: 48))
-                .foregroundStyle(Color.lumioAccent)
+                .foregroundStyle(accentColor)
             Text("Clear day ahead")
                 .font(LumioTypography.title3)
             Text("No events scheduled for today. Enjoy the open time.")

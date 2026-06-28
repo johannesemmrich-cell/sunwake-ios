@@ -1,6 +1,13 @@
 import SwiftUI
 import Combine
 
+// MARK: — Calendar Intent
+
+enum CalendarIntent {
+    case addEvent(title: String, date: Date?)
+    case deleteEvent(title: String)
+}
+
 @MainActor
 final class ChatViewModel: ObservableObject {
     @Published var messages: [ChatMessage] = []
@@ -33,6 +40,12 @@ final class ChatViewModel: ObservableObject {
         isThinking = true
         defer { isThinking = false }
 
+        // Calendar intent detection
+        if let intent = parseCalendarIntent(from: text) {
+            await handleCalendarIntent(intent, originalText: text)
+            return
+        }
+
         await calendarService.fetchTodayEvents()
         let context = BriefingContext(
             todayEvents: calendarService.todayEvents,
@@ -48,5 +61,68 @@ final class ChatViewModel: ObservableObject {
         messages = []
         let lang = language ?? self.language
         Task { await setup(language: lang) }
+    }
+
+    // MARK: — Calendar Intent Parsing
+
+    private func parseCalendarIntent(from text: String) -> CalendarIntent? {
+        let lower = text.lowercased()
+
+        let addKeywords = ["füge", "hinzufügen", "erstelle", "neuer termin", "add event", "create event", "schedule"]
+        let deleteKeywords = ["lösche", "löschen", "entferne", "delete", "remove", "absagen", "cancel"]
+
+        if addKeywords.contains(where: { lower.contains($0) }) {
+            return .addEvent(title: extractEventTitle(from: text), date: extractDate(from: text))
+        }
+        if deleteKeywords.contains(where: { lower.contains($0) }) {
+            return .deleteEvent(title: extractEventTitle(from: text))
+        }
+        return nil
+    }
+
+    private func extractEventTitle(from text: String) -> String {
+        // Text in Anführungszeichen hat Priorität
+        if let range = text.range(of: "\"([^\"]+)\"", options: .regularExpression) {
+            return String(text[range]).trimmingCharacters(in: CharacterSet(charactersIn: "\""))
+        }
+        // Fallback: alles nach Schlüsselwort
+        for keyword in ["mit ", "with ", "event ", "termin "] {
+            if let range = text.lowercased().range(of: keyword) {
+                let after = text[range.upperBound...]
+                let trimmed = String(after).components(separatedBy: CharacterSet(charactersIn: ".,!?")).first ?? String(after)
+                let cleaned = trimmed.trimmingCharacters(in: .whitespaces)
+                if !cleaned.isEmpty { return cleaned }
+            }
+        }
+        return text
+    }
+
+    private func extractDate(from text: String) -> Date? {
+        let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.date.rawValue)
+        let matches = detector?.matches(in: text, range: NSRange(text.startIndex..., in: text))
+        return matches?.first?.date
+    }
+
+    private func handleCalendarIntent(_ intent: CalendarIntent, originalText: String) async {
+        switch intent {
+        case .addEvent(let title, let date):
+            let targetDate = date ?? Date()
+            let start = Calendar.current.date(bySettingHour: 9, minute: 0, second: 0, of: targetDate) ?? targetDate
+            let end = Calendar.current.date(byAdding: .hour, value: 1, to: start) ?? start
+            do {
+                try await calendarService.addEvent(title: title, startDate: start, endDate: end)
+                let msg = language == "de"
+                    ? "Termin '\(title)' wurde für \(start.formatted(.dateTime.day().month().hour().minute())) erstellt ✓"
+                    : "Event '\(title)' created for \(start.formatted(.dateTime.day().month().hour().minute())) ✓"
+                messages.append(ChatMessage(role: .assistant, text: msg, timestamp: Date()))
+            } catch {
+                messages.append(ChatMessage(role: .assistant, text: "Fehler beim Erstellen des Termins: \(error.localizedDescription)", timestamp: Date()))
+            }
+        case .deleteEvent:
+            let msg = language == "de"
+                ? "Um Termine zu löschen, öffne bitte den Kalender und tippe auf den Termin. Direkte Löschung per Chat wird aus Sicherheitsgründen nicht unterstützt."
+                : "To delete events, please open the Calendar and tap the event. Direct deletion via chat is not supported for safety reasons."
+            messages.append(ChatMessage(role: .assistant, text: msg, timestamp: Date()))
+        }
     }
 }
