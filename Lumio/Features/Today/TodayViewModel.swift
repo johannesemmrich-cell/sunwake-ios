@@ -20,18 +20,15 @@ final class TodayViewModel: ObservableObject {
     let weatherService = WeatherService()
 
     func loadInitialData() async {
-        await withTaskGroup(of: Void.self) { group in
-            group.addTask { await self.fetchEvents() }
-            group.addTask { await self.fetchWeather() }
-        }
+        await fetchEvents()
         await generateSummary()
+        // Weather loads non-blocking after initial content is ready
+        Task { [weak self] in await self?.fetchWeather() }
     }
 
     func refresh() async {
-        await withTaskGroup(of: Void.self) { group in
-            group.addTask { await self.fetchEvents() }
-            group.addTask { await self.fetchWeather() }
-        }
+        await fetchEvents()
+        Task { [weak self] in await self?.fetchWeather() }
         await generateSummary()
     }
 
