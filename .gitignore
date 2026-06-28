@@ -36,3 +36,4 @@ Podfile.lock
 # Secrets
 *.env
 Secrets.plist
+.claude/worktrees/
