@@ -121,11 +121,12 @@ final class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegat
     }
 
     nonisolated func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        let status = manager.authorizationStatus
         Task { @MainActor in
-            switch manager.authorizationStatus {
+            switch status {
             case .authorizedWhenInUse, .authorizedAlways:
                 if self.locationContinuation != nil {
-                    manager.requestLocation()
+                    self.locationManager.requestLocation()
                 }
             case .denied, .restricted:
                 self.locationDenied = true
