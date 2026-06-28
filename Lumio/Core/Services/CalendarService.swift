@@ -141,22 +141,25 @@ final class CalendarService: ObservableObject {
         let endOfDay = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: Date())) ?? Date()
         let predicate = store.predicateForIncompleteReminders(withDueDateStarting: nil, ending: endOfDay, calendars: nil)
 
-        // Convert EKReminder → ReminderItem inside the callback (on callback thread),
-        // then pass the Sendable [ReminderItem] array through the continuation.
-        let items: [ReminderItem] = await withCheckedContinuation { continuation in
+        // EKReminder objects are only safe to access on the main thread (the event store's thread).
+        // The fetchReminders callback fires on an arbitrary background thread — do NOT
+        // touch any EKReminder properties there. Dispatch to main first, then read properties.
+        let items: [ReminderItem] = await withCheckedContinuation { (continuation: CheckedContinuation<[ReminderItem], Never>) in
             store.fetchReminders(matching: predicate) { ekReminders in
-                let mapped = (ekReminders ?? [])
-                    .sorted { ($0.dueDateComponents?.date ?? .distantFuture) < ($1.dueDateComponents?.date ?? .distantFuture) }
-                    .map { r in
-                        ReminderItem(
-                            id: r.calendarItemIdentifier,
-                            title: r.title ?? "Erinnerung",
-                            dueDate: r.dueDateComponents?.date,
-                            priority: r.priority,
-                            notes: r.notes
-                        )
-                    }
-                continuation.resume(returning: mapped)
+                DispatchQueue.main.async {
+                    let mapped = (ekReminders ?? [])
+                        .sorted { ($0.dueDateComponents?.date ?? .distantFuture) < ($1.dueDateComponents?.date ?? .distantFuture) }
+                        .map { r -> ReminderItem in
+                            ReminderItem(
+                                id: r.calendarItemIdentifier,
+                                title: r.title ?? "Erinnerung",
+                                dueDate: r.dueDateComponents?.date,
+                                priority: r.priority,
+                                notes: r.notes
+                            )
+                        }
+                    continuation.resume(returning: mapped)
+                }
             }
         }
 
