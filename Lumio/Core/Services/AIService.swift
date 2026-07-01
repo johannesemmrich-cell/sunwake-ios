@@ -198,7 +198,10 @@ final class AIService: ObservableObject {
         let fmt = DateFormatter()
         fmt.dateFormat = "HH:mm"
         let eventLines = events.map { "- \(fmt.string(from: $0.startDate)): \($0.title)" }.joined(separator: "\n")
-        let reminderLines = reminders.prefix(5).map { "- \($0.title)" }.joined(separator: "\n")
+        let dueTomorrowSuffix = language == "de" ? " (bis morgen)" : " (due tomorrow)"
+        let reminderLines = reminders.prefix(5).map {
+            "- \($0.title)\($0.isDueTomorrow ? dueTomorrowSuffix : "")"
+        }.joined(separator: "\n")
         let pdfSection = pdfTexts.isEmpty ? "" : "\n\nLecture content available:\n" + pdfTexts.prefix(3).joined(separator: "\n---\n")
 
         let langInstruction: String

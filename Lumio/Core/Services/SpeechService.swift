@@ -107,11 +107,11 @@ final class SpeechService: NSObject, ObservableObject {
 
         let utterance = AVSpeechUtterance(string: item.text)
         utterance.voice = bestVoice(for: item.language)
-        utterance.rate = AVSpeechUtteranceDefaultSpeechRate * 0.88
-        utterance.pitchMultiplier = 1.0
+        utterance.rate = AVSpeechUtteranceDefaultSpeechRate * 0.9
+        utterance.pitchMultiplier = 1.05
         utterance.volume = 1.0
-        utterance.preUtteranceDelay = 0.1
-        utterance.postUtteranceDelay = 0.3
+        utterance.preUtteranceDelay = 0.05
+        utterance.postUtteranceDelay = 0.25
         currentUtterance = utterance
         synthesizer.speak(utterance)
         isPlaying = true
@@ -119,15 +119,14 @@ final class SpeechService: NSObject, ObservableObject {
         updateNowPlayingInfo()
     }
 
-    // Pick the most natural voice available: quality tier first (premium > enhanced > default),
-    // then prefer named neural voices, then female. Never picks novelty/humor voices.
     private func bestVoice(for languageCode: String) -> AVSpeechSynthesisVoice? {
         let prefix = languageCode.prefix(2).lowercased()
         let all = AVSpeechSynthesisVoice.speechVoices()
 
         let candidates = all.filter { v in
             v.language.lowercased().hasPrefix(prefix) &&
-            !v.identifier.lowercased().contains("novelty")
+            !v.identifier.lowercased().contains("novelty") &&
+            !v.identifier.lowercased().contains("humor")
         }
 
         let sorted = candidates.sorted { lhs, rhs in
@@ -135,11 +134,15 @@ final class SpeechService: NSObject, ObservableObject {
             if lhs.quality.rawValue != rhs.quality.rawValue {
                 return lhs.quality.rawValue > rhs.quality.rawValue
             }
-            // 2. Prefer Siri neural voices (most natural on device)
+            // 2. Eloquence = Apple's on-device neural TTS engine (same as Siri's voice backend)
+            let lEloquence = lhs.identifier.lowercased().contains("eloquence")
+            let rEloquence = rhs.identifier.lowercased().contains("eloquence")
+            if lEloquence != rEloquence { return lEloquence }
+            // 3. Siri-branded voices
             let lSiri = lhs.identifier.lowercased().contains("siri")
             let rSiri = rhs.identifier.lowercased().contains("siri")
             if lSiri != rSiri { return lSiri }
-            // 3. Prefer female
+            // 4. Prefer female
             return lhs.gender == .female && rhs.gender != .female
         }
 

@@ -6,7 +6,7 @@ struct ReminderSettingsView: View {
     @State private var authStatus: EKAuthorizationStatus = EKEventStore.authorizationStatus(for: .reminder)
     @State private var excludedIDs: Set<String> = ReminderExclusionStore.excludedIDs
 
-    private let service = CalendarService()
+    private let store = EKEventStore()
 
     var body: some View {
         List {
@@ -51,8 +51,12 @@ struct ReminderSettingsView: View {
                         }
                         .contentShape(Rectangle())
                         .onTapGesture {
-                            ReminderExclusionStore.toggle(cal.calendarIdentifier)
-                            excludedIDs = ReminderExclusionStore.excludedIDs
+                            if excludedIDs.contains(cal.calendarIdentifier) {
+                                excludedIDs.remove(cal.calendarIdentifier)
+                            } else {
+                                excludedIDs.insert(cal.calendarIdentifier)
+                            }
+                            ReminderExclusionStore.excludedIDs = excludedIDs
                         }
                     }
                 } header: {
@@ -78,7 +82,7 @@ struct ReminderSettingsView: View {
         .task {
             authStatus = EKEventStore.authorizationStatus(for: .reminder)
             if authStatus == .fullAccess {
-                calendars = service.availableReminderCalendars()
+                calendars = store.calendars(for: .reminder)
             }
         }
     }

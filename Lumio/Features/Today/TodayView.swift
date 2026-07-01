@@ -644,7 +644,7 @@ struct ReminderCard: View {
     let reminder: ReminderItem
 
     private var timeString: String? {
-        guard let due = reminder.dueDate else { return nil }
+        guard let due = reminder.dueDate, !reminder.isDueTomorrow else { return nil }
         let fmt = DateFormatter()
         fmt.dateFormat = "HH:mm"
         return fmt.string(from: due)
@@ -668,7 +668,15 @@ struct ReminderCard: View {
                         .lineLimit(2)
                 }
 
-                if let time = timeString {
+                if reminder.isDueTomorrow {
+                    HStack(spacing: 4) {
+                        Image(systemName: "exclamationmark.clock")
+                            .font(.caption2)
+                        Text("Bis morgen", comment: "Reminder due tomorrow label")
+                            .font(LumioTypography.caption)
+                    }
+                    .foregroundStyle(.orange)
+                } else if let time = timeString {
                     HStack(spacing: 4) {
                         Image(systemName: "clock")
                             .font(.caption2)

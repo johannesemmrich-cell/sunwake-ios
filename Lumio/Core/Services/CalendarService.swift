@@ -7,6 +7,7 @@ struct ReminderItem: Identifiable, Sendable {
     let id: String
     let title: String
     let dueDate: Date?
+    let isDueTomorrow: Bool
     let priority: Int
     let notes: String?
 
@@ -156,9 +157,18 @@ final class CalendarService: ObservableObject {
     func fetchTodayReminders() async {
         guard EKEventStore.authorizationStatus(for: .reminder) == .fullAccess else { return }
 
-        let calendar = Calendar.current
-        let endOfDay = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: Date())) ?? Date()
-        let predicate = store.predicateForIncompleteReminders(withDueDateStarting: nil, ending: endOfDay, calendars: nil)
+        let cal = Calendar.current
+        let startOfToday = cal.startOfDay(for: Date())
+        let startOfTomorrow = cal.date(byAdding: .day, value: 1, to: startOfToday)!
+        let startOfDayAfterTomorrow = cal.date(byAdding: .day, value: 2, to: startOfToday)!
+
+        // Include reminders due today, tomorrow, overdue, or with no due date.
+        // Reminders due further in the future are excluded by the ending bound.
+        let predicate = store.predicateForIncompleteReminders(
+            withDueDateStarting: nil,
+            ending: startOfDayAfterTomorrow,
+            calendars: nil
+        )
 
         // EKReminder objects are only safe to access on the main thread (the event store's thread).
         // The fetchReminders callback fires on an arbitrary background thread — do NOT
@@ -171,10 +181,13 @@ final class CalendarService: ObservableObject {
                         .filter { !excluded.contains($0.calendar.calendarIdentifier) }
                         .sorted { ($0.dueDateComponents?.date ?? .distantFuture) < ($1.dueDateComponents?.date ?? .distantFuture) }
                         .map { r -> ReminderItem in
-                            ReminderItem(
+                            let dueDate = r.dueDateComponents?.date
+                            let dueTomorrow = dueDate.map { $0 >= startOfTomorrow && $0 < startOfDayAfterTomorrow } ?? false
+                            return ReminderItem(
                                 id: r.calendarItemIdentifier,
                                 title: r.title ?? "Erinnerung",
-                                dueDate: r.dueDateComponents?.date,
+                                dueDate: dueDate,
+                                isDueTomorrow: dueTomorrow,
                                 priority: r.priority,
                                 notes: r.notes
                             )
