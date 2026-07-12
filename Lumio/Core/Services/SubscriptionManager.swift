@@ -18,7 +18,13 @@ final class SubscriptionManager: ObservableObject {
     static let allProductIDs: [String] = [monthlyProductID, yearlyProductID, lifetimeProductID]
 
     var effectivelyPremium: Bool {
-        isPremium || isLifetime || AppState.isDeveloperModeStaticCheck
+        #if DEBUG
+        // Für Screenshot-Automation: Premium ohne Developer-Mode-UI freischalten.
+        if ProcessInfo.processInfo.arguments.contains("-premiumForScreenshots") {
+            return true
+        }
+        #endif
+        return isPremium || isLifetime || AppState.isDeveloperModeStaticCheck
     }
 
     init() {
