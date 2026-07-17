@@ -50,17 +50,25 @@ final class ThemeManager: ObservableObject {
 // MARK: — Design tokens
 
 // Preset accent colors for the App Layout configurator
-let sunwakeAccentPalette: [(label: String, hex: String)] = [
-    ("Orange",  "FF9500"),
-    ("Blau",    "007AFF"),
-    ("Indigo",  "5856D6"),
-    ("Pink",    "FF2D55"),
-    ("Grün",    "34C759"),
-    ("Teal",    "5AC8FA"),
-    ("Rot",     "FF3B30"),
-    ("Gelb",    "FFCC00"),
-    ("Braun",   "A2845E"),
-    ("Grau",    "636366"),
+struct SunwakeAccentColor {
+    let labelDE: String
+    let labelEN: String
+    let hex: String
+
+    func label(language: String) -> String { language == "de" ? labelDE : labelEN }
+}
+
+let sunwakeAccentPalette: [SunwakeAccentColor] = [
+    .init(labelDE: "Orange", labelEN: "Orange",  hex: "FF9500"),
+    .init(labelDE: "Blau",   labelEN: "Blue",    hex: "007AFF"),
+    .init(labelDE: "Indigo", labelEN: "Indigo",  hex: "5856D6"),
+    .init(labelDE: "Pink",   labelEN: "Pink",    hex: "FF2D55"),
+    .init(labelDE: "Grün",   labelEN: "Green",   hex: "34C759"),
+    .init(labelDE: "Teal",   labelEN: "Teal",    hex: "5AC8FA"),
+    .init(labelDE: "Rot",    labelEN: "Red",     hex: "FF3B30"),
+    .init(labelDE: "Gelb",   labelEN: "Yellow",  hex: "FFCC00"),
+    .init(labelDE: "Braun",  labelEN: "Brown",   hex: "A2845E"),
+    .init(labelDE: "Grau",   labelEN: "Gray",    hex: "636366"),
 ]
 
 extension Color {

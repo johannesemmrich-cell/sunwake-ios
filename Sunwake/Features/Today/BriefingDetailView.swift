@@ -50,7 +50,7 @@ struct BriefingDetailView: View {
             ToolbarItem(placement: .topBarTrailing) {
                 HStack(spacing: 16) {
                     ttsButton
-                    Button("Fertig") { dismiss() }
+                    Button(language == "de" ? "Fertig" : "Done") { dismiss() }
                         .fontWeight(.semibold)
                 }
             }
@@ -65,7 +65,7 @@ struct BriefingDetailView: View {
                 .environmentObject(subscriptionManager)
         }
         .sheet(item: $selectedReminder) { reminder in
-            ReminderDetailSheet(reminder: reminder, accentColor: accentColor)
+            ReminderDetailSheet(reminder: reminder, accentColor: accentColor, language: language)
         }
     }
 
@@ -308,7 +308,10 @@ struct BriefingDetailView: View {
 struct ReminderDetailSheet: View {
     let reminder: ReminderItem
     let accentColor: Color
+    let language: String
     @Environment(\.dismiss) private var dismiss
+
+    private func loc(_ de: String, _ en: String) -> String { language == "de" ? de : en }
 
     var body: some View {
         NavigationStack {
@@ -329,7 +332,7 @@ struct ReminderDetailSheet: View {
                             Text(reminder.title)
                                 .font(SunwakeTypography.body.weight(.semibold))
                             if !reminder.priorityLabel.isEmpty {
-                                Text(reminder.priorityLabel + " Priorität")
+                                Text(reminder.priorityLabel + " " + loc("Priorität", "Priority"))
                                     .font(SunwakeTypography.caption)
                                     .foregroundStyle(.orange)
                             }
@@ -339,14 +342,14 @@ struct ReminderDetailSheet: View {
                 }
 
                 if let due = reminder.dueDate {
-                    Section("Fälligkeit") {
+                    Section(loc("Fälligkeit", "Due date")) {
                         Label(due.formatted(.dateTime.day().month().hour().minute()),
                               systemImage: "clock")
                     }
                 }
 
                 if let notes = reminder.notes, !notes.isEmpty {
-                    Section("Notizen") {
+                    Section(loc("Notizen", "Notes")) {
                         Text(notes)
                             .font(SunwakeTypography.body)
                             .foregroundStyle(.secondary)
@@ -354,11 +357,11 @@ struct ReminderDetailSheet: View {
                 }
             }
             .listStyle(.insetGrouped)
-            .navigationTitle("Erinnerung")
+            .navigationTitle(loc("Erinnerung", "Reminder"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Fertig") { dismiss() }
+                    Button(loc("Fertig", "Done")) { dismiss() }
                         .fontWeight(.semibold)
                 }
             }

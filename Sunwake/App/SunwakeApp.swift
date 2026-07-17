@@ -57,6 +57,9 @@ struct SunwakeApp: App {
     }
 
     private func endStaleLiveActivities() async {
+        // A live briefing owns its activity — only clean up when idle,
+        // otherwise foregrounding the app kills the running Dynamic Island.
+        guard !speechService.isPlaying && !speechService.isPaused else { return }
         for activity in Activity<SunwakeBriefingAttributes>.activities {
             await activity.end(nil, dismissalPolicy: .immediate)
         }

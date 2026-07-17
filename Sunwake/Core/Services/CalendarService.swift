@@ -31,6 +31,15 @@ enum CalendarProvider: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
+    func displayName(language: String) -> String {
+        switch self {
+        case .apple:   return "Apple"
+        case .google:  return "Google"
+        case .outlook: return "Outlook"
+        case .other:   return language == "de" ? "Andere" : "Other"
+        }
+    }
+
     var systemImage: String {
         switch self {
         case .apple:   return "applelogo"

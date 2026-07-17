@@ -11,6 +11,11 @@ struct SunwakeCalendarView: View {
     @State private var selectedEvent: CalendarEvent?
     @State private var showAddEvent = false
 
+    /// Picks the German or English string based on the app language.
+    private func loc(_ de: String, _ en: String) -> String {
+        appState.selectedLanguage == "de" ? de : en
+    }
+
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
@@ -22,7 +27,7 @@ struct SunwakeCalendarView: View {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 6) {
                             // Provider filter
-                            CalendarFilterPill(title: "Alle", color: .accentColor,
+                            CalendarFilterPill(title: loc("Alle", "All"), color: .accentColor,
                                 isSelected: viewModel.selectedProvider == nil && viewModel.selectedCalendarIDs.isEmpty) {
                                 withAnimation(.spring(duration: 0.2)) {
                                     viewModel.selectedProvider = nil
@@ -31,7 +36,7 @@ struct SunwakeCalendarView: View {
                             }
                             ForEach(viewModel.availableProviders) { provider in
                                 CalendarFilterPill(
-                                    title: provider.rawValue,
+                                    title: provider.displayName(language: appState.selectedLanguage),
                                     color: provider.pillColor,
                                     isSelected: viewModel.selectedProvider == provider
                                 ) {
@@ -79,7 +84,7 @@ struct SunwakeCalendarView: View {
                 }
                 .animation(.easeInOut(duration: 0.18), value: viewModel.filteredEvents.map(\.id))
             }
-            .navigationTitle("Kalender")
+            .navigationTitle(loc("Kalender", "Calendar"))
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -89,7 +94,7 @@ struct SunwakeCalendarView: View {
                         } label: {
                             Image(systemName: "plus")
                         }
-                        Button("Heute") {
+                        Button(loc("Heute", "Today")) {
                             withAnimation(.spring(duration: 0.3)) { viewModel.selectedDate = Date() }
                         }
                         .disabled(viewModel.selectedDate.isToday)
@@ -116,6 +121,13 @@ struct SunwakeCalendarView: View {
         }
     }
 
+    private var eventCountText: String {
+        let count = viewModel.filteredEvents.count
+        return appState.selectedLanguage == "de"
+            ? "\(count) Termin\(count == 1 ? "" : "e")"
+            : "\(count) event\(count == 1 ? "" : "s")"
+    }
+
     private var eventList: some View {
         ScrollView {
             LazyVStack(spacing: 0) {
@@ -124,7 +136,7 @@ struct SunwakeCalendarView: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(viewModel.selectedDate, format: .dateTime.weekday(.wide).day().month(.wide))
                             .font(SunwakeTypography.headline)
-                        Text("\(viewModel.filteredEvents.count) Termin\(viewModel.filteredEvents.count == 1 ? "" : "e")")
+                        Text(eventCountText)
                             .font(SunwakeTypography.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -136,7 +148,7 @@ struct SunwakeCalendarView: View {
 
                 VStack(spacing: 6) {
                     ForEach(viewModel.filteredEvents) { event in
-                        AgendaEventRow(event: event) {
+                        AgendaEventRow(event: event, language: appState.selectedLanguage) {
                             selectedEvent = event
                         }
                         .padding(.horizontal, 16)
@@ -159,11 +171,11 @@ struct SunwakeCalendarView: View {
             Image(systemName: viewModel.selectedDate.isToday ? "sun.max.fill" : "calendar.badge.clock")
                 .font(.system(size: 48, weight: .light))
                 .foregroundStyle(Color.accentColor.opacity(0.35))
-            Text(viewModel.selectedDate.isToday ? "Freier Tag" : "Keine Termine")
+            Text(viewModel.selectedDate.isToday ? loc("Freier Tag", "Clear day") : loc("Keine Termine", "No events"))
                 .font(SunwakeTypography.title3.weight(.semibold))
             Text(viewModel.selectedDate.isToday
-                 ? "Heute sind keine Termine eingetragen."
-                 : "An diesem Tag sind keine Termine.")
+                 ? loc("Heute sind keine Termine eingetragen.", "No events scheduled for today.")
+                 : loc("An diesem Tag sind keine Termine.", "No events scheduled for this day."))
                 .font(SunwakeTypography.body)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -321,10 +333,13 @@ struct CalendarFilterPill: View {
 
 struct AgendaEventRow: View {
     let event: CalendarEvent
+    let language: String
     let onTap: () -> Void
 
+    private var isDE: Bool { language == "de" }
+
     private var timeString: String {
-        if event.isAllDay { return "Ganztägig" }
+        if event.isAllDay { return isDE ? "Ganztägig" : "All day" }
         let fmt = DateFormatter()
         fmt.dateFormat = "HH:mm"
         return "\(fmt.string(from: event.startDate)) – \(fmt.string(from: event.endDate))"
@@ -333,9 +348,15 @@ struct AgendaEventRow: View {
     private var duration: String {
         guard !event.isAllDay else { return "" }
         let mins = Int(event.endDate.timeIntervalSince(event.startDate) / 60)
-        if mins < 60 { return "\(mins) Min." }
-        let h = mins / 60, m = mins % 60
-        return m == 0 ? "\(h) Std." : "\(h)h \(m)m"
+        if isDE {
+            if mins < 60 { return "\(mins) Min." }
+            let h = mins / 60, m = mins % 60
+            return m == 0 ? "\(h) Std." : "\(h)h \(m)m"
+        } else {
+            if mins < 60 { return "\(mins) min" }
+            let h = mins / 60, m = mins % 60
+            return m == 0 ? "\(h)h" : "\(h)h \(m)m"
+        }
     }
 
     private var isNow: Bool {
@@ -385,7 +406,7 @@ struct AgendaEventRow: View {
 
                         VStack(alignment: .trailing, spacing: 6) {
                             if isNow {
-                                Text("Jetzt")
+                                Text(isDE ? "Jetzt" : "Now")
                                     .font(.system(size: 11, weight: .bold))
                                     .foregroundStyle(.white)
                                     .padding(.horizontal, 7)
@@ -428,6 +449,7 @@ struct AgendaEventRow: View {
 struct EventDetailSheet: View {
     let event: CalendarEvent
     @EnvironmentObject private var subscriptionManager: SubscriptionManager
+    @EnvironmentObject private var appState: AppState
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
 
@@ -452,8 +474,13 @@ struct EventDetailSheet: View {
         draftKeywords != (existingNote?.linkedKeywords ?? "")
     }
 
+    /// Picks the German or English string based on the app language.
+    private func loc(_ de: String, _ en: String) -> String {
+        appState.selectedLanguage == "de" ? de : en
+    }
+
     private var timeString: String {
-        if event.isAllDay { return "Ganztägig" }
+        if event.isAllDay { return loc("Ganztägig", "All day") }
         let fmt = DateFormatter()
         fmt.dateFormat = "HH:mm"
         return "\(fmt.string(from: event.startDate)) – \(fmt.string(from: event.endDate))"
@@ -503,7 +530,7 @@ struct EventDetailSheet: View {
                     // Apple Calendar notes
                     if let notes = event.notes, !notes.isEmpty {
                         VStack(alignment: .leading, spacing: 8) {
-                            Label("Aus der Kalender-App", systemImage: "calendar.badge.checkmark")
+                            Label(loc("Aus der Kalender-App", "From the Calendar app"), systemImage: "calendar.badge.checkmark")
                                 .font(SunwakeTypography.caption.weight(.semibold))
                                 .foregroundStyle(.secondary)
                             Text(notes)
@@ -527,7 +554,7 @@ struct EventDetailSheet: View {
 
                     // User notes
                     VStack(alignment: .leading, spacing: 8) {
-                        Label("Meine Notizen", systemImage: "pencil.and.outline")
+                        Label(loc("Meine Notizen", "My notes"), systemImage: "pencil.and.outline")
                             .font(SunwakeTypography.caption.weight(.semibold))
                             .foregroundStyle(.secondary)
                         TextEditor(text: $draftNotes)
@@ -545,10 +572,10 @@ struct EventDetailSheet: View {
 
                     // Keywords / file links
                     VStack(alignment: .leading, spacing: 8) {
-                        Label("Stichwörter & Dateien", systemImage: "link")
+                        Label(loc("Stichwörter & Dateien", "Keywords & files"), systemImage: "link")
                             .font(SunwakeTypography.caption.weight(.semibold))
                             .foregroundStyle(.secondary)
-                        TextField("z.B. App-Idee, Projekt Alpha, Rechnung", text: $draftKeywords)
+                        TextField(loc("z.B. App-Idee, Projekt Alpha, Rechnung", "e.g. App idea, Project Alpha, Invoice"), text: $draftKeywords)
                             .font(SunwakeTypography.body)
                             .padding(10)
                             .background(
@@ -572,7 +599,7 @@ struct EventDetailSheet: View {
                                 }
                             }
                         }
-                        Text("Komma-getrennte Stichworte. Der KI-Chat findet passende Dateien automatisch.")
+                        Text(loc("Komma-getrennte Stichworte. Der KI-Chat findet passende Dateien automatisch.", "Comma-separated keywords. The AI chat finds matching files automatically."))
                             .font(SunwakeTypography.caption2)
                             .foregroundStyle(.tertiary)
                     }
@@ -589,9 +616,9 @@ struct EventDetailSheet: View {
                                     .font(.body.weight(.medium))
                                     .foregroundStyle(Color.sunwakeAccent)
                                 VStack(alignment: .leading, spacing: 2) {
-                                    Text("Mit KI besprechen")
+                                    Text(loc("Mit KI besprechen", "Discuss with AI"))
                                         .font(SunwakeTypography.callout.weight(.semibold))
-                                    Text("Fragen stellen, Zusammenhänge entdecken")
+                                    Text(loc("Fragen stellen, Zusammenhänge entdecken", "Ask questions, discover connections"))
                                         .font(SunwakeTypography.caption)
                                         .foregroundStyle(.secondary)
                                 }
@@ -615,10 +642,10 @@ struct EventDetailSheet: View {
                                 .font(.body)
                                 .foregroundStyle(.tertiary)
                             VStack(alignment: .leading, spacing: 2) {
-                                Text("Mit KI besprechen")
+                                Text(loc("Mit KI besprechen", "Discuss with AI"))
                                     .font(SunwakeTypography.callout)
                                     .foregroundStyle(.secondary)
-                                Text("Nur mit Premium")
+                                Text(loc("Nur mit Premium", "Premium only"))
                                     .font(SunwakeTypography.caption)
                                     .foregroundStyle(.tertiary)
                             }
@@ -640,16 +667,16 @@ struct EventDetailSheet: View {
                 }
             }
             .background(Color(uiColor: .systemGroupedBackground))
-            .navigationTitle("Termin")
+            .navigationTitle(loc("Termin", "Event"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button("Schließen") { dismiss() }
+                    Button(loc("Schließen", "Close")) { dismiss() }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     HStack(spacing: 8) {
                         if hasChanges {
-                            Button("Speichern") { saveNotes() }
+                            Button(loc("Speichern", "Save")) { saveNotes() }
                                 .fontWeight(.semibold)
                         }
                         if !event.isAllDay {
@@ -668,17 +695,18 @@ struct EventDetailSheet: View {
                     }
                 }
             }
-            .confirmationDialog("Termin löschen?", isPresented: $showDeleteConfirm, titleVisibility: .visible) {
-                Button("Löschen", role: .destructive) {
+            .confirmationDialog(loc("Termin löschen?", "Delete event?"), isPresented: $showDeleteConfirm, titleVisibility: .visible) {
+                Button(loc("Löschen", "Delete"), role: .destructive) {
                     HapticFeedback.impact(.medium)
                     Task {
                         try? await calendarService.deleteEvent(identifier: event.id)
                         dismiss()
                     }
                 }
-                Button("Abbrechen", role: .cancel) {}
+                Button(loc("Abbrechen", "Cancel"), role: .cancel) {}
             } message: {
-                Text("Der Termin '\(event.title)' wird dauerhaft aus dem Kalender entfernt.")
+                Text(loc("Der Termin '\(event.title)' wird dauerhaft aus dem Kalender entfernt.",
+                         "The event '\(event.title)' will be permanently removed from the calendar."))
             }
             .onAppear {
                 draftNotes = existingNote?.customNotes ?? ""
@@ -739,6 +767,7 @@ private struct RescheduleSheet: View {
     @State private var newEnd: Date
     @State private var isSaving = false
     @State private var errorMessage: String?
+    @EnvironmentObject private var appState: AppState
     @Environment(\.dismiss) private var dismiss
 
     init(event: CalendarEvent, calendarService: CalendarService, onDone: @escaping () -> Void) {
@@ -751,10 +780,15 @@ private struct RescheduleSheet: View {
 
     private var duration: TimeInterval { event.endDate.timeIntervalSince(event.startDate) }
 
+    /// Picks the German or English string based on the app language.
+    private func loc(_ de: String, _ en: String) -> String {
+        appState.selectedLanguage == "de" ? de : en
+    }
+
     var body: some View {
         NavigationStack {
             Form {
-                Section("Startzeit") {
+                Section(loc("Startzeit", "Start time")) {
                     DatePicker("", selection: $newStart, displayedComponents: [.date, .hourAndMinute])
                         .datePickerStyle(.graphical)
                         .labelsHidden()
@@ -762,7 +796,7 @@ private struct RescheduleSheet: View {
                             newEnd = val.addingTimeInterval(duration)
                         }
                 }
-                Section("Endzeit") {
+                Section(loc("Endzeit", "End time")) {
                     DatePicker("", selection: $newEnd, in: newStart..., displayedComponents: .hourAndMinute)
                         .datePickerStyle(.wheel)
                         .labelsHidden()
@@ -771,14 +805,14 @@ private struct RescheduleSheet: View {
                     Section { Text(err).foregroundStyle(.red).font(SunwakeTypography.caption) }
                 }
             }
-            .navigationTitle("Termin verschieben")
+            .navigationTitle(loc("Termin verschieben", "Reschedule event"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button("Abbrechen") { dismiss() }
+                    Button(loc("Abbrechen", "Cancel")) { dismiss() }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Speichern") {
+                    Button(loc("Speichern", "Save")) {
                         Task {
                             isSaving = true
                             do {
@@ -819,6 +853,7 @@ struct EventAIChatSheet: View {
     let keywords: String
     @StateObject private var viewModel: EventChatViewModel
     @FocusState private var inputFocused: Bool
+    @EnvironmentObject private var appState: AppState
     @Environment(\.dismiss) private var dismiss
 
     init(event: CalendarEvent, userNotes: String, keywords: String = "") {
@@ -826,6 +861,11 @@ struct EventAIChatSheet: View {
         self.userNotes = userNotes
         self.keywords = keywords
         _viewModel = StateObject(wrappedValue: EventChatViewModel(event: event, userNotes: userNotes, keywords: keywords))
+    }
+
+    /// Picks the German or English string based on the app language.
+    private func loc(_ de: String, _ en: String) -> String {
+        appState.selectedLanguage == "de" ? de : en
     }
 
     var body: some View {
@@ -881,14 +921,14 @@ struct EventAIChatSheet: View {
                     Task { await viewModel.sendMessage() }
                 }
             }
-            .navigationTitle("KI-Chat")
+            .navigationTitle(loc("KI-Chat", "AI Chat"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Fertig") { dismiss() }
+                    Button(loc("Fertig", "Done")) { dismiss() }
                 }
             }
-            .task { viewModel.setup() }
+            .task { viewModel.setup(language: appState.selectedLanguage) }
         }
     }
 }
@@ -903,6 +943,7 @@ final class EventChatViewModel: ObservableObject {
     private let event: CalendarEvent
     private let userNotes: String
     private let keywords: String
+    private var language: String = "en"
 
     init(event: CalendarEvent, userNotes: String, keywords: String = "") {
         self.event = event
@@ -910,14 +951,20 @@ final class EventChatViewModel: ObservableObject {
         self.keywords = keywords
     }
 
-    func setup() {
+    private func loc(_ de: String, _ en: String) -> String { language == "de" ? de : en }
+
+    func setup(language: String) {
+        self.language = language
         guard messages.isEmpty else { return }
         var parts: [String] = []
-        if let notes = event.notes, !notes.isEmpty { parts.append("Kalender-Notiz: \"\(notes)\"") }
-        if !userNotes.isEmpty { parts.append("Meine Notiz: \"\(userNotes)\"") }
-        if !keywords.isEmpty { parts.append("Verknüpfte Stichworte: \(keywords)") }
-        let context = parts.isEmpty ? "" : " Kontext: \(parts.joined(separator: " | "))"
-        let greeting = "Hallo! Ich kenne deinen Termin **\(event.title)**.\(context) Was möchtest du wissen oder besprechen?"
+        if let notes = event.notes, !notes.isEmpty { parts.append("\(loc("Kalender-Notiz", "Calendar note")): \"\(notes)\"") }
+        if !userNotes.isEmpty { parts.append("\(loc("Meine Notiz", "My note")): \"\(userNotes)\"") }
+        if !keywords.isEmpty { parts.append("\(loc("Verknüpfte Stichworte", "Linked keywords")): \(keywords)") }
+        let context = parts.isEmpty ? "" : " \(loc("Kontext", "Context")): \(parts.joined(separator: " | "))"
+        let greeting = loc(
+            "Hallo! Ich kenne deinen Termin **\(event.title)**.\(context) Was möchtest du wissen oder besprechen?",
+            "Hi! I know about your event **\(event.title)**.\(context) What would you like to know or discuss?"
+        )
         messages = [ChatMessage(role: .assistant, text: greeting, timestamp: Date())]
     }
 
@@ -929,19 +976,19 @@ final class EventChatViewModel: ObservableObject {
         isThinking = true
         defer { isThinking = false }
 
-        var contextParts = ["Termin: \(event.title)"]
+        var contextParts = ["\(loc("Termin", "Event")): \(event.title)"]
         if !event.isAllDay {
             let fmt = DateFormatter(); fmt.dateFormat = "HH:mm"
-            contextParts.append("Zeit: \(fmt.string(from: event.startDate))–\(fmt.string(from: event.endDate))")
+            contextParts.append("\(loc("Zeit", "Time")): \(fmt.string(from: event.startDate))–\(fmt.string(from: event.endDate))")
         }
-        if let loc = event.location, !loc.isEmpty { contextParts.append("Ort: \(loc)") }
-        if let notes = event.notes, !notes.isEmpty { contextParts.append("Kalender-Notiz: \(notes)") }
-        if !userNotes.isEmpty { contextParts.append("Meine Notiz: \(userNotes)") }
-        if !keywords.isEmpty { contextParts.append("Verknüpfte Stichworte/Dateien: \(keywords)") }
+        if let eventLocation = event.location, !eventLocation.isEmpty { contextParts.append("\(loc("Ort", "Location")): \(eventLocation)") }
+        if let notes = event.notes, !notes.isEmpty { contextParts.append("\(loc("Kalender-Notiz", "Calendar note")): \(notes)") }
+        if !userNotes.isEmpty { contextParts.append("\(loc("Meine Notiz", "My note")): \(userNotes)") }
+        if !keywords.isEmpty { contextParts.append("\(loc("Verknüpfte Stichworte/Dateien", "Linked keywords/files")): \(keywords)") }
 
         let fullQuestion = "[\(contextParts.joined(separator: " | "))] \(text)"
         let ctx = BriefingContext(todayEvents: [], pdfSummaries: [], date: Date())
-        let reply = await aiService.answerQuestion(fullQuestion, context: ctx)
+        let reply = await aiService.answerQuestion(fullQuestion, context: ctx, language: language)
         messages.append(ChatMessage(role: .assistant, text: reply, timestamp: Date()))
     }
 }
@@ -1028,6 +1075,7 @@ struct AddEventSheet: View {
     let onSave: () -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var appState: AppState
     @State private var title = ""
     @State private var isAllDay = false
     @State private var startTime: Date
@@ -1038,6 +1086,11 @@ struct AddEventSheet: View {
     @State private var selectedCalendarID: String = ""
 
     private let calendarService = CalendarService()
+
+    /// Picks the German or English string based on the app language.
+    private func loc(_ de: String, _ en: String) -> String {
+        appState.selectedLanguage == "de" ? de : en
+    }
 
     init(defaultDate: Date, onSave: @escaping () -> Void) {
         self.defaultDate = defaultDate
@@ -1058,33 +1111,33 @@ struct AddEventSheet: View {
         NavigationStack {
             Form {
                 Section {
-                    TextField("Titel", text: $title)
+                    TextField(loc("Titel", "Title"), text: $title)
                         .autocorrectionDisabled()
                 }
                 Section {
-                    Toggle("Ganztägig", isOn: $isAllDay)
+                    Toggle(loc("Ganztägig", "All day"), isOn: $isAllDay)
                 }
                 if !isAllDay {
-                    Section("Start") {
+                    Section(loc("Start", "Start")) {
                         DatePicker("", selection: $startTime, displayedComponents: [.date, .hourAndMinute])
                             .datePickerStyle(.graphical)
                             .labelsHidden()
                     }
-                    Section("Ende") {
+                    Section(loc("Ende", "End")) {
                         DatePicker("", selection: $endTime, in: startTime..., displayedComponents: .hourAndMinute)
                             .datePickerStyle(.wheel)
                             .labelsHidden()
                     }
                 } else {
-                    Section("Datum") {
+                    Section(loc("Datum", "Date")) {
                         DatePicker("", selection: $startTime, displayedComponents: .date)
                             .datePickerStyle(.graphical)
                             .labelsHidden()
                     }
                 }
                 if !availableCalendars.isEmpty {
-                    Section("Kalender") {
-                        Picker("Kalender", selection: $selectedCalendarID) {
+                    Section(loc("Kalender", "Calendar")) {
+                        Picker(loc("Kalender", "Calendar"), selection: $selectedCalendarID) {
                             ForEach(availableCalendars, id: \.calendarIdentifier) { cal in
                                 HStack(spacing: 6) {
                                     Circle()
@@ -1105,15 +1158,15 @@ struct AddEventSheet: View {
                     }
                 }
             }
-            .navigationTitle("Neuer Termin")
+            .navigationTitle(loc("Neuer Termin", "New Event"))
             .navigationBarTitleDisplayMode(.inline)
             .task { loadCalendars() }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button("Abbrechen") { dismiss() }
+                    Button(loc("Abbrechen", "Cancel")) { dismiss() }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Hinzufügen") {
+                    Button(loc("Hinzufügen", "Add")) {
                         Task { await save() }
                     }
                     .fontWeight(.semibold)

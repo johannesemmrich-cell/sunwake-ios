@@ -61,7 +61,9 @@ final class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegat
     @Published private(set) var locationDenied: Bool = false
 
     private let locationManager = CLLocationManager()
-    private var locationContinuation: CheckedContinuation<CLLocation?, Never>?
+    // Multiple concurrent fetches may wait on one location — every
+    // continuation must be resumed exactly once, so keep them all.
+    private var locationContinuations: [CheckedContinuation<CLLocation?, Never>] = []
     private var cachedLocation: CLLocation?
 
     override init() {
@@ -91,16 +93,24 @@ final class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegat
             // Request auth; when granted, locationManagerDidChangeAuthorization triggers requestLocation()
             locationManager.requestWhenInUseAuthorization()
             return await withCheckedContinuation { continuation in
-                locationContinuation = continuation
+                locationContinuations.append(continuation)
             }
         case .denied, .restricted:
             locationDenied = true
             return nil
         default:
             return await withCheckedContinuation { continuation in
-                locationContinuation = continuation
+                locationContinuations.append(continuation)
                 locationManager.requestLocation()
             }
+        }
+    }
+
+    private func resumeLocationWaiters(with location: CLLocation?) {
+        let waiters = locationContinuations
+        locationContinuations = []
+        for continuation in waiters {
+            continuation.resume(returning: location)
         }
     }
 
@@ -108,15 +118,13 @@ final class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegat
         guard let location = locations.first else { return }
         Task { @MainActor in
             self.cachedLocation = location
-            self.locationContinuation?.resume(returning: location)
-            self.locationContinuation = nil
+            self.resumeLocationWaiters(with: location)
         }
     }
 
     nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
         Task { @MainActor in
-            self.locationContinuation?.resume(returning: nil)
-            self.locationContinuation = nil
+            self.resumeLocationWaiters(with: nil)
         }
     }
 
@@ -125,13 +133,12 @@ final class WeatherService: NSObject, ObservableObject, CLLocationManagerDelegat
         Task { @MainActor in
             switch status {
             case .authorizedWhenInUse, .authorizedAlways:
-                if self.locationContinuation != nil {
+                if !self.locationContinuations.isEmpty {
                     self.locationManager.requestLocation()
                 }
             case .denied, .restricted:
                 self.locationDenied = true
-                self.locationContinuation?.resume(returning: nil)
-                self.locationContinuation = nil
+                self.resumeLocationWaiters(with: nil)
             default:
                 break
             }

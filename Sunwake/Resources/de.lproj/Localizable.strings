@@ -112,6 +112,10 @@
 "Ask your AI assistant about your schedule, lecture notes, or anything on your mind. Available with Sunwake Premium." = "Stell deinem KI-Assistenten Fragen zu deinem Kalender, deinen Notizen oder allem, was dich bewegt. Verfügbar mit Sunwake Premium.";
 "Unlock Premium" = "Premium freischalten";
 
+/* Notifications */
+"Tap to see your morning briefing." = "Tippe, um dein Morgen-Briefing zu sehen.";
+"Good morning ☀️" = "Guten Morgen ☀️";
+
 /* AI availability */
 "AI features are ready on this device." = "KI-Funktionen sind auf diesem Gerät verfügbar.";
 "AI features require an iPhone 15 Pro or newer (iPhone 16 or 17). All other Sunwake features work perfectly without it." = "KI-Funktionen benötigen ein iPhone 15 Pro oder neuer. Alle anderen Sunwake-Funktionen laufen auch ohne KI.";

@@ -3,6 +3,11 @@ import SwiftUI
 struct BriefingSettingsView: View {
     @EnvironmentObject private var appState: AppState
 
+    /// Picks the German or English string based on the app language.
+    private func loc(_ de: String, _ en: String) -> String {
+        appState.selectedLanguage == "de" ? de : en
+    }
+
     var body: some View {
         List {
             Section {
@@ -21,9 +26,9 @@ struct BriefingSettingsView: View {
                     .onTapGesture { appState.briefingLength = length }
                 }
             } header: {
-                Text("Länge")
+                Text(loc("Länge", "Length"))
             } footer: {
-                Text("Kurz: 1 Satz · Mittel: 3 Sätze · Lang: 5 Sätze")
+                Text(loc("Kurz: 1 Satz · Mittel: 3 Sätze · Lang: 5 Sätze", "Short: 1 sentence · Medium: 3 sentences · Long: 5 sentences"))
                     .font(SunwakeTypography.caption)
             }
 
@@ -33,7 +38,7 @@ struct BriefingSettingsView: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(style.displayName)
                                 .font(SunwakeTypography.body)
-                            Text(style.descriptionText)
+                            Text(style.descriptionText(language: appState.selectedLanguage))
                                 .font(SunwakeTypography.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -48,10 +53,10 @@ struct BriefingSettingsView: View {
                     .onTapGesture { appState.briefingStyle = style }
                 }
             } header: {
-                Text("Stil")
+                Text(loc("Stil", "Style"))
             }
         }
-        .navigationTitle("Briefing-Einstellungen")
+        .navigationTitle(loc("Briefing-Einstellungen", "Briefing Settings"))
         .listStyle(.insetGrouped)
         .tint(appState.accentColor)
         .toolbar {
@@ -65,11 +70,12 @@ struct BriefingSettingsView: View {
 }
 
 private extension BriefingStyle {
-    var descriptionText: String {
+    func descriptionText(language: String) -> String {
+        let isDE = language == "de"
         switch self {
-        case .friendly: return "Warm und motivierend"
-        case .formal:   return "Sachlich und präzise"
-        case .concise:  return "Sehr knapp gehalten"
+        case .friendly: return isDE ? "Warm und motivierend" : "Warm and encouraging"
+        case .formal:   return isDE ? "Sachlich und präzise" : "Professional and precise"
+        case .concise:  return isDE ? "Sehr knapp gehalten" : "Kept very brief"
         }
     }
 }

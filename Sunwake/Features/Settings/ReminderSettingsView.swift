@@ -2,23 +2,29 @@ import SwiftUI
 import EventKit
 
 struct ReminderSettingsView: View {
+    @EnvironmentObject private var appState: AppState
     @State private var calendars: [EKCalendar] = []
     @State private var authStatus: EKAuthorizationStatus = EKEventStore.authorizationStatus(for: .reminder)
     @State private var excludedIDs: Set<String> = ReminderExclusionStore.excludedIDs
 
     private let store = EKEventStore()
 
+    /// Picks the German or English string based on the app language.
+    private func loc(_ de: String, _ en: String) -> String {
+        appState.selectedLanguage == "de" ? de : en
+    }
+
     var body: some View {
         List {
             if authStatus != .fullAccess {
                 Section {
                     VStack(alignment: .leading, spacing: 8) {
-                        Label("Zugriff auf Erinnerungen erforderlich", systemImage: "exclamationmark.triangle")
+                        Label(loc("Zugriff auf Erinnerungen erforderlich", "Reminders access required"), systemImage: "exclamationmark.triangle")
                             .font(SunwakeTypography.body.weight(.medium))
-                        Text("Erlaube Sunwake den Zugriff auf Erinnerungen in den Systemeinstellungen.")
+                        Text(loc("Erlaube Sunwake den Zugriff auf Erinnerungen in den Systemeinstellungen.", "Allow Sunwake access to Reminders in System Settings."))
                             .font(SunwakeTypography.caption)
                             .foregroundStyle(.secondary)
-                        Button("Einstellungen öffnen") {
+                        Button(loc("Einstellungen öffnen", "Open Settings")) {
                             if let url = URL(string: UIApplication.openSettingsURLString) {
                                 UIApplication.shared.open(url)
                             }
@@ -29,7 +35,7 @@ struct ReminderSettingsView: View {
                 }
             } else if calendars.isEmpty {
                 Section {
-                    Text("Keine Erinnerungs-Listen gefunden.")
+                    Text(loc("Keine Erinnerungs-Listen gefunden.", "No reminder lists found."))
                         .foregroundStyle(.secondary)
                         .font(SunwakeTypography.caption)
                 }
@@ -60,9 +66,9 @@ struct ReminderSettingsView: View {
                         }
                     }
                 } header: {
-                    Text("Angezeigte Listen")
+                    Text(loc("Angezeigte Listen", "Visible lists"))
                 } footer: {
-                    Text("Deaktivierte Listen werden nicht im Briefing und im Heute-Tab angezeigt.")
+                    Text(loc("Deaktivierte Listen werden nicht im Briefing und im Heute-Tab angezeigt.", "Disabled lists won't appear in the briefing or the Today tab."))
                         .font(SunwakeTypography.caption)
                 }
 
@@ -71,13 +77,13 @@ struct ReminderSettingsView: View {
                         ReminderExclusionStore.excludedIDs = []
                         excludedIDs = []
                     } label: {
-                        Label("Alle aktivieren", systemImage: "checkmark.circle")
+                        Label(loc("Alle aktivieren", "Enable all"), systemImage: "checkmark.circle")
                             .foregroundStyle(.primary)
                     }
                 }
             }
         }
-        .navigationTitle("Erinnerungen")
+        .navigationTitle(loc("Erinnerungen", "Reminders"))
         .listStyle(.insetGrouped)
         .task {
             authStatus = EKEventStore.authorizationStatus(for: .reminder)

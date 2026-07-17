@@ -23,14 +23,15 @@ enum TopBarAction: String, CaseIterable {
         }
     }
 
-    var label: String {
+    func label(language: String) -> String {
+        let isDE = language == "de"
         switch self {
-        case .calendar: return "Kalender"
+        case .calendar: return isDE ? "Kalender" : "Calendar"
         case .chat:     return "Chat"
-        case .refresh:  return "Aktualisieren"
-        case .library:  return "Mediathek"
-        case .settings: return "Einstellungen"
-        case .none:     return "Leer"
+        case .refresh:  return isDE ? "Aktualisieren" : "Refresh"
+        case .library:  return isDE ? "Mediathek" : "Library"
+        case .settings: return isDE ? "Einstellungen" : "Settings"
+        case .none:     return isDE ? "Leer" : "Empty"
         }
     }
 }
@@ -51,6 +52,11 @@ struct AppLayoutConfigView: View {
     @State private var editingTopSlot: SlotID? = nil
     @State private var showResetConfirmation = false
 
+    /// Picks the German or English string based on the app language.
+    private func loc(_ de: String, _ en: String) -> String {
+        appState.selectedLanguage == "de" ? de : en
+    }
+
     var body: some View {
         ScrollView {
             VStack(spacing: 28) {
@@ -61,12 +67,12 @@ struct AppLayoutConfigView: View {
             .padding(.vertical, 24)
         }
         .background(Color(uiColor: .systemGroupedBackground))
-        .navigationTitle("App-Layout")
+        .navigationTitle(loc("App-Layout", "App Layout"))
         .tint(appState.accentColor)
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button("Zurücksetzen") { showResetConfirmation = true }
+                Button(loc("Zurücksetzen", "Reset")) { showResetConfirmation = true }
                     .font(SunwakeTypography.body)
             }
             if appState.isDeveloperModeActive {
@@ -75,8 +81,8 @@ struct AppLayoutConfigView: View {
                 }
             }
         }
-        .confirmationDialog("Design zurücksetzen?", isPresented: $showResetConfirmation, titleVisibility: .visible) {
-            Button("Auf Standard zurücksetzen", role: .destructive) {
+        .confirmationDialog(loc("Design zurücksetzen?", "Reset design?"), isPresented: $showResetConfirmation, titleVisibility: .visible) {
+            Button(loc("Auf Standard zurücksetzen", "Reset to default"), role: .destructive) {
                 HapticFeedback.impact(.medium)
                 withAnimation(.spring(duration: 0.3)) {
                     appState.accentColorHex = "FF9500"
@@ -85,9 +91,9 @@ struct AppLayoutConfigView: View {
                     loadSlots()
                 }
             }
-            Button("Abbrechen", role: .cancel) {}
+            Button(loc("Abbrechen", "Cancel"), role: .cancel) {}
         } message: {
-            Text("Akzentfarbe, Tab-Reihenfolge und Toolbar-Aktionen werden auf die Standardwerte zurückgesetzt.")
+            Text(loc("Akzentfarbe, Tab-Reihenfolge und Toolbar-Aktionen werden auf die Standardwerte zurückgesetzt.", "Accent color, tab order and toolbar actions will be reset to their defaults."))
         }
         .onAppear { loadSlots() }
         .sheet(item: $editingSlot) { slot in
@@ -135,11 +141,11 @@ struct AppLayoutConfigView: View {
     private var phonePreview: some View {
         VStack(spacing: 0) {
             HStack {
-                Text("Vorschau")
+                Text(loc("Vorschau", "Preview"))
                     .font(SunwakeTypography.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
                 Spacer()
-                Text("Tippe auf einen Tab")
+                Text(loc("Tippe auf einen Tab", "Tap a tab"))
                     .font(SunwakeTypography.caption)
                     .foregroundStyle(.tertiary)
             }
@@ -256,7 +262,7 @@ struct AppLayoutConfigView: View {
                         .font(.system(size: 12, weight: .medium))
                         .foregroundStyle(color)
                 }
-                Text(tab.shortLabel)
+                Text(tab.shortLabel(language: appState.selectedLanguage))
                     .font(.system(size: 6, weight: .medium))
                     .foregroundStyle(color.opacity(0.85))
             }
@@ -270,7 +276,7 @@ struct AppLayoutConfigView: View {
 
     private var accentColorSection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            sectionHeader("Akzentfarbe", icon: "paintpalette.fill")
+            sectionHeader(loc("Akzentfarbe", "Accent color"), icon: "paintpalette.fill")
             ColorPaletteGrid(selectedHex: $appState.accentColorHex)
         }
     }
@@ -321,7 +327,7 @@ private struct TabPickerSheet: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Text("Tab auswählen")
+            Text(appState.selectedLanguage == "de" ? "Tab auswählen" : "Choose tab")
                 .font(SunwakeTypography.headline.weight(.semibold))
                 .padding(.top, 24)
                 .padding(.bottom, 16)
@@ -346,7 +352,7 @@ private struct TabPickerSheet: View {
                                     .foregroundStyle(tab == currentTab ? .white : (isPremiumLocked ? .secondary : .primary))
                             }
 
-                            Text(tab.fullLabel)
+                            Text(tab.fullLabel(language: appState.selectedLanguage))
                                 .font(SunwakeTypography.body)
                                 .foregroundStyle(isPremiumLocked ? .secondary : .primary)
 
@@ -391,7 +397,7 @@ private struct TopBarPickerSheet: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Text("Toolbar-Aktion auswählen")
+            Text(appState.selectedLanguage == "de" ? "Toolbar-Aktion auswählen" : "Choose toolbar action")
                 .font(SunwakeTypography.headline.weight(.semibold))
                 .padding(.top, 24)
                 .padding(.bottom, 16)
@@ -410,7 +416,7 @@ private struct TopBarPickerSheet: View {
                                     .font(.body.weight(.medium))
                                     .foregroundStyle(action == currentAction ? .white : .primary)
                             }
-                            Text(action.label)
+                            Text(action.label(language: appState.selectedLanguage))
                                 .font(SunwakeTypography.body)
                                 .foregroundStyle(.primary)
                             Spacer()
@@ -440,6 +446,7 @@ private struct TopBarPickerSheet: View {
 
 private struct ColorPaletteGrid: View {
     @Binding var selectedHex: String
+    @EnvironmentObject private var appState: AppState
 
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 10), count: 5)
 
@@ -462,7 +469,7 @@ private struct ColorPaletteGrid: View {
                         )
                         .animation(.spring(duration: 0.2), value: isSelected)
 
-                    Text(item.label)
+                    Text(item.label(language: appState.selectedLanguage))
                         .font(.system(size: 10, weight: isSelected ? .semibold : .regular))
                         .foregroundStyle(isSelected ? .primary : .secondary)
                 }
@@ -483,23 +490,25 @@ private struct ColorPaletteGrid: View {
 // MARK: — AppTab helpers
 
 private extension AppTab {
-    var shortLabel: String {
+    func shortLabel(language: String) -> String {
+        let isDE = language == "de"
         switch self {
-        case .today:    return "Heute"
-        case .calendar: return "Kalender"
-        case .library:  return "Mediathek"
+        case .today:    return isDE ? "Heute" : "Today"
+        case .calendar: return isDE ? "Kalender" : "Calendar"
+        case .library:  return isDE ? "Mediathek" : "Library"
         case .chat:     return "Chat"
-        case .settings: return "Einst."
+        case .settings: return isDE ? "Einst." : "Settings"
         }
     }
 
-    var fullLabel: String {
+    func fullLabel(language: String) -> String {
+        let isDE = language == "de"
         switch self {
-        case .today:    return "Heute"
-        case .calendar: return "Kalender"
-        case .library:  return "Mediathek"
+        case .today:    return isDE ? "Heute" : "Today"
+        case .calendar: return isDE ? "Kalender" : "Calendar"
+        case .library:  return isDE ? "Mediathek" : "Library"
         case .chat:     return "Chat"
-        case .settings: return "Einstellungen"
+        case .settings: return isDE ? "Einstellungen" : "Settings"
         }
     }
 }

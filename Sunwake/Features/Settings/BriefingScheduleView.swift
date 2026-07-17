@@ -6,7 +6,7 @@ private struct WeekdayEntry: Identifiable {
     let long: String
 }
 
-private let weekdays: [WeekdayEntry] = [
+private let weekdaysDE: [WeekdayEntry] = [
     .init(id: 2, short: "Mo", long: "Montag"),
     .init(id: 3, short: "Di", long: "Dienstag"),
     .init(id: 4, short: "Mi", long: "Mittwoch"),
@@ -16,9 +16,27 @@ private let weekdays: [WeekdayEntry] = [
     .init(id: 1, short: "So", long: "Sonntag"),
 ]
 
+private let weekdaysEN: [WeekdayEntry] = [
+    .init(id: 2, short: "Mon", long: "Monday"),
+    .init(id: 3, short: "Tue", long: "Tuesday"),
+    .init(id: 4, short: "Wed", long: "Wednesday"),
+    .init(id: 5, short: "Thu", long: "Thursday"),
+    .init(id: 6, short: "Fri", long: "Friday"),
+    .init(id: 7, short: "Sat", long: "Saturday"),
+    .init(id: 1, short: "Sun", long: "Sunday"),
+]
+
 struct BriefingScheduleView: View {
+    @EnvironmentObject private var appState: AppState
     @State private var enabledDays: Set<Int>
     @State private var dayTimes: [Int: Date]
+
+    private var weekdays: [WeekdayEntry] { appState.selectedLanguage == "de" ? weekdaysDE : weekdaysEN }
+
+    /// Picks the German or English string based on the app language.
+    private func loc(_ de: String, _ en: String) -> String {
+        appState.selectedLanguage == "de" ? de : en
+    }
 
     init() {
         let saved = UserDefaults.standard.array(forKey: UserDefaultsKey.briefingScheduleDays) as? [Int]
@@ -43,10 +61,10 @@ struct BriefingScheduleView: View {
                     weekdayRow(entry)
                 }
             } header: {
-                Text("Zeitplan")
+                Text(loc("Zeitplan", "Schedule"))
             } footer: {
                 if enabledDays.isEmpty {
-                    Text("Kein Tag aktiv — du erhältst keine Briefing-Benachrichtigungen.")
+                    Text(loc("Kein Tag aktiv — du erhältst keine Briefing-Benachrichtigungen.", "No day active — you won't receive briefing notifications."))
                         .font(SunwakeTypography.caption)
                 } else {
                     Text(footerText)
@@ -59,27 +77,27 @@ struct BriefingScheduleView: View {
                     enabledDays = Set(2...6)
                     saveAndSchedule()
                 } label: {
-                    Label("Mo–Fr aktivieren", systemImage: "briefcase")
+                    Label(loc("Mo–Fr aktivieren", "Enable Mon–Fri"), systemImage: "briefcase")
                         .foregroundStyle(.primary)
                 }
                 Button {
                     enabledDays = Set(1...7)
                     saveAndSchedule()
                 } label: {
-                    Label("Alle Tage aktivieren", systemImage: "calendar")
+                    Label(loc("Alle Tage aktivieren", "Enable all days"), systemImage: "calendar")
                         .foregroundStyle(.primary)
                 }
                 Button(role: .destructive) {
                     enabledDays = []
                     saveAndSchedule()
                 } label: {
-                    Label("Benachrichtigungen deaktivieren", systemImage: "bell.slash")
+                    Label(loc("Benachrichtigungen deaktivieren", "Disable notifications"), systemImage: "bell.slash")
                 }
             } header: {
-                Text("Schnellauswahl")
+                Text(loc("Schnellauswahl", "Quick selection"))
             }
         }
-        .navigationTitle("Briefing-Zeitplan")
+        .navigationTitle(loc("Briefing-Zeitplan", "Briefing schedule"))
         .listStyle(.insetGrouped)
     }
 
@@ -132,7 +150,7 @@ struct BriefingScheduleView: View {
             let time = dayTimes[entry.id].map { fmt.string(from: $0) } ?? "07:00"
             return "\(entry.short) \(time)"
         }
-        return "Briefing-Benachrichtigungen: " + parts.joined(separator: ", ")
+        return loc("Briefing-Benachrichtigungen: ", "Briefing notifications: ") + parts.joined(separator: ", ")
     }
 
     private func saveAndSchedule() {

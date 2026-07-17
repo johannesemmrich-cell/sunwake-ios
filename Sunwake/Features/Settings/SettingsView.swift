@@ -218,6 +218,7 @@ struct ThemePickerRow: View {
 
 struct CalendarSettingsView: View {
     @EnvironmentObject private var subscriptionManager: SubscriptionManager
+    @EnvironmentObject private var appState: AppState
     @State private var availableCalendars: [EKCalendar] = []
     @State private var excludedIDs: Set<String> = BriefingExclusionStore.excludedIDs
 
@@ -228,18 +229,23 @@ struct CalendarSettingsView: View {
         }
     }
 
+    /// Picks the German or English string based on the app language.
+    private func loc(_ de: String, _ en: String) -> String {
+        appState.selectedLanguage == "de" ? de : en
+    }
+
     var body: some View {
         List {
             // Connected providers
             Section {
                 CalendarProviderButton(name: "Apple Calendar", icon: "applelogo", color: .primary, isLoading: false) {}
-                CalendarProviderButton(name: "Google Calendar", icon: "globe", color: .blue, isLoading: false, badge: "Coming soon") {}
-                CalendarProviderButton(name: "Outlook", icon: "envelope.fill", color: .blue, isLoading: false, badge: "Coming soon") {}
+                CalendarProviderButton(name: "Google Calendar", icon: "globe", color: .blue, isLoading: false, badge: loc("Bald verfügbar", "Coming soon")) {}
+                CalendarProviderButton(name: "Outlook", icon: "envelope.fill", color: .blue, isLoading: false, badge: loc("Bald verfügbar", "Coming soon")) {}
             } header: {
-                Text("Verbundene Anbieter")
+                Text(loc("Verbundene Anbieter", "Connected providers"))
             } footer: {
                 if !subscriptionManager.effectivelyPremium {
-                    Text("Free plan: 1 Kalender. Mit Premium mehrere Anbieter verbinden.")
+                    Text(loc("Free plan: 1 Kalender. Mit Premium mehrere Anbieter verbinden.", "Free plan: 1 calendar. Connect multiple providers with Premium."))
                         .font(SunwakeTypography.caption)
                 }
             }
@@ -271,15 +277,15 @@ struct CalendarSettingsView: View {
                             }
                         }
                     } header: {
-                        Label(provider.rawValue, systemImage: provider.systemImage)
+                        Label(provider.displayName(language: appState.selectedLanguage), systemImage: provider.systemImage)
                     } footer: {
-                        Text("Deaktivierte Kalender erscheinen nicht im Briefing.")
+                        Text(loc("Deaktivierte Kalender erscheinen nicht im Briefing.", "Disabled calendars won't appear in the briefing."))
                             .font(SunwakeTypography.caption)
                     }
                 }
             }
         }
-        .navigationTitle("Kalender")
+        .navigationTitle(loc("Kalender", "Calendar"))
         .listStyle(.insetGrouped)
         .onAppear {
             excludedIDs = BriefingExclusionStore.excludedIDs

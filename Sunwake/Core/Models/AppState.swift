@@ -98,7 +98,7 @@ enum AppTab: String, CaseIterable {
     var title: LocalizedStringKey {
         switch self {
         case .today:    return "Today"
-        case .calendar: return "Kalender"
+        case .calendar: return "Calendar"
         case .library:  return "Library"
         case .chat:     return "Chat"
         case .settings: return "Settings"

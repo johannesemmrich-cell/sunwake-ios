@@ -39,17 +39,11 @@ final class SpeechService: NSObject, ObservableObject {
         )
     }
 
-    /// Starts playback after a delay, e.g. to let a UI transition finish first.
-    func speak(_ items: [SpeechItem], after delay: TimeInterval, accentColorHex: String = "FF9500") {
-        DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
-            self?.speak(items, accentColorHex: accentColorHex)
-        }
-    }
-
     func pause() {
         synthesizer.pauseSpeaking(at: .word)
         isPaused = true
         isPlaying = false
+        updateNowPlayingInfo()
         // Dismiss the Dynamic Island immediately on pause so it doesn't linger
         Task { await liveActivityService.stop() }
     }
@@ -62,6 +56,7 @@ final class SpeechService: NSObject, ObservableObject {
         }
         isPaused = false
         isPlaying = true
+        updateNowPlayingInfo()
         // Restart the Dynamic Island when resuming
         guard currentIndex < queue.count else { return }
         liveActivityService.startActivity(
@@ -82,8 +77,10 @@ final class SpeechService: NSObject, ObservableObject {
         Task { await liveActivityService.stop() }
     }
 
-    /// Speaks a short sample with the given voice, without touching the playback queue.
+    /// Speaks a short sample with the given voice. Any running briefing is
+    /// stopped first so playback state and Dynamic Island can't go stale.
     func preview(text: String, voice: AVSpeechSynthesisVoice) {
+        if isPlaying || isPaused { stop() }
         synthesizer.stopSpeaking(at: .immediate)
         try? AVAudioSession.sharedInstance().setActive(true, options: .notifyOthersOnDeactivation)
         let utterance = AVSpeechUtterance(string: text)
@@ -119,6 +116,8 @@ final class SpeechService: NSObject, ObservableObject {
         }
         let item = queue[currentIndex]
         currentItemTitle = item.title
+        progress = 0
+        lastProgressUpdate = -1
 
         try? AVAudioSession.sharedInstance().setActive(true, options: .notifyOthersOnDeactivation)
 
