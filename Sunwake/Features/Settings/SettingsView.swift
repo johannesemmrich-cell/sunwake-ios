@@ -17,137 +17,127 @@ struct SettingsView: View {
 
     var body: some View {
         NavigationStack {
-            List {
-                // Calendar & Reminders
-                Section(loc("Kalender", "Calendar")) {
-                    NavigationLink(destination: CalendarSettingsView()) {
-                        Label(loc("Verbundene Kalender", "Connected Calendars"), systemImage: "calendar")
-                    }
-                    NavigationLink(destination: ReminderSettingsView()) {
-                        Label(loc("Erinnerungen", "Reminders"), systemImage: "checklist")
-                    }
-                }
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    header
+                        .padding(.top, 8)
 
-                // Notifications
-                Section(loc("Mitteilungen", "Notifications")) {
-                    NavigationLink(destination: BriefingScheduleView()) {
-                        // "bell.badge.clock" does not exist as an SF Symbol (renders blank)
-                        Label(loc("Briefing-Zeitplan", "Briefing schedule"), systemImage: "calendar.badge.clock")
+                    // Calendar & Reminders
+                    settingsGroup(loc("Kalender", "Calendar")) {
+                        navRow(icon: "calendar", title: loc("Verbundene Kalender", "Connected Calendars")) {
+                            CalendarSettingsView()
+                        }
+                        divider
+                        navRow(icon: "checklist", title: loc("Erinnerungen", "Reminders")) {
+                            ReminderSettingsView()
+                        }
                     }
-                }
 
-                // Voice
-                Section(loc("Vorlesen", "Read aloud")) {
-                    NavigationLink(destination: VoiceSettingsView()) {
-                        Label(loc("Stimme", "Voice"), systemImage: "waveform")
+                    // Notifications
+                    settingsGroup(loc("Mitteilungen", "Notifications")) {
+                        navRow(icon: "calendar.badge.clock", title: loc("Briefing-Zeitplan", "Briefing schedule")) {
+                            BriefingScheduleView()
+                        }
                     }
-                }
 
-                // Appearance
-                Section(loc("Darstellung", "Appearance")) {
-                    ThemePickerRow(themeManager: themeManager)
-                }
+                    // Voice
+                    settingsGroup(loc("Vorlesen", "Read aloud")) {
+                        navRow(icon: "waveform", title: loc("Stimme", "Voice")) {
+                            VoiceSettingsView()
+                        }
+                    }
 
-                // Subscription
-                Section(loc("Abo", "Subscription")) {
+                    // Appearance (Design + NEU: Briefing-Stil 4c)
+                    settingsGroup(loc("Darstellung", "Appearance")) {
+                        row(icon: "paintbrush", title: loc("Design", "Theme")) {
+                            SunwakeSegmented(
+                                options: AppTheme.allCases,
+                                selection: $themeManager.currentTheme
+                            ) { $0.displayName(language: appState.selectedLanguage) }
+                        }
+                        divider
+                        row(icon: "sun.horizon", title: loc("Briefing-Stil", "Briefing style")) {
+                            SunwakeSegmented(
+                                options: BriefingBannerStyle.allCases,
+                                selection: $appState.briefingBannerStyle
+                            ) { $0.displayName(language: appState.selectedLanguage) }
+                        }
+                    }
+
+                    // Subscription
+                    settingsGroup(loc("Abo", "Subscription")) {
+                        if subscriptionManager.effectivelyPremium {
+                            row(icon: "star.fill", title: loc("Premium aktiv", "Premium Active"), titleColor: .sunwakeAccentDeep) {
+                                EmptyView()
+                            }
+                        } else {
+                            buttonRow(icon: "star", title: loc("Auf Premium upgraden", "Upgrade to Premium"), detail: loc("2 €/Monat", "€2/mo")) {
+                                showPaywall = true
+                            }
+                        }
+                        divider
+                        buttonRow(icon: "arrow.clockwise.circle", title: loc("Käufe wiederherstellen", "Restore Purchases"), titleColor: .sunwakeInkSecondary) {
+                            Task { await subscriptionManager.restorePurchases() }
+                        }
+                    }
+
+                    // Premium customization
                     if subscriptionManager.effectivelyPremium {
-                        Label(loc("Premium aktiv", "Premium Active"), systemImage: "star.fill")
-                            .foregroundStyle(appState.accentColor)
-                    } else {
-                        Button {
-                            showPaywall = true
-                        } label: {
-                            HStack {
-                                Label(loc("Auf Premium upgraden", "Upgrade to Premium"), systemImage: "star")
-                                Spacer()
-                                Text(loc("2 €/Monat", "€2/mo"))
-                                    .font(SunwakeTypography.caption)
-                                    .foregroundStyle(.secondary)
+                        settingsGroup("Premium") {
+                            navRow(icon: "wand.and.sparkles", title: loc("Briefing einstellen", "Briefing settings")) {
+                                BriefingSettingsView()
+                            }
+                            divider
+                            navRow(icon: "paintpalette.fill", title: loc("App-Layout", "App layout")) {
+                                AppLayoutConfigView()
+                            }
+                            divider
+                            navRow(icon: "app.badge", title: loc("App-Icon", "App icon")) {
+                                AppIconPickerView()
                             }
                         }
                     }
-                    Button(loc("Käufe wiederherstellen", "Restore Purchases")) {
-                        Task { await subscriptionManager.restorePurchases() }
-                    }
-                    .foregroundStyle(.secondary)
-                }
 
-                // Premium customization
-                if subscriptionManager.effectivelyPremium {
-                    Section("Premium") {
-                        NavigationLink(destination: BriefingSettingsView()) {
-                            // "waveform.and.sparkles" does not exist as an SF Symbol (renders blank)
-                            Label(loc("Briefing einstellen", "Briefing settings"), systemImage: "wand.and.sparkles")
+                    // About
+                    settingsGroup(loc("Über", "About")) {
+                        navRow(icon: "info.circle", title: loc("Über Sunwake", "About Sunwake")) {
+                            AboutView()
                         }
-                        NavigationLink(destination: AppLayoutConfigView()) {
-                            Label(loc("App-Layout & Farben", "App layout & colors"), systemImage: "paintpalette.fill")
+                        divider
+                        navRow(icon: "hand.raised", title: loc("Datenschutz", "Privacy")) {
+                            PrivacyView()
                         }
-                        NavigationLink(destination: AppIconPickerView()) {
-                            Label(loc("App-Icon", "App icon"), systemImage: "app.badge")
+                        divider
+                        buttonRow(icon: "arrow.counterclockwise", title: loc("Onboarding wiederholen", "Repeat onboarding")) {
+                            showResetOnboardingConfirm = true
                         }
                     }
-                }
 
-                // About
-                Section(loc("Über", "About")) {
-                    NavigationLink(destination: AboutView()) {
-                        Label(loc("Über Sunwake", "About Sunwake"), systemImage: "info.circle")
-                    }
-                    NavigationLink(destination: PrivacyView()) {
-                        Label(loc("Datenschutz", "Privacy"), systemImage: "hand.raised")
-                    }
-                    Button {
-                        showResetOnboardingConfirm = true
-                    } label: {
-                        Label(loc("Onboarding wiederholen", "Repeat onboarding"), systemImage: "arrow.counterclockwise")
-                            .foregroundStyle(.primary)
-                    }
-                }
-
-                // Developer Mode entry (hidden)
-                Section {
-                    Button {
-                        handleVersionTap()
-                    } label: {
-                        HStack {
-                            Text("Version \(appVersion) (\(buildNumber))")
-                                .foregroundStyle(.secondary)
-                            Spacer()
-                            if appState.isDeveloperModeActive {
-                                Text("DEV")
-                                    .font(SunwakeTypography.caption2.weight(.bold))
-                                    .foregroundStyle(.white)
-                                    .padding(.horizontal, 6)
-                                    .padding(.vertical, 2)
-                                    .background(Capsule().fill(Color.red))
+                    if appState.isDeveloperModeActive {
+                        settingsGroup("Developer") {
+                            navRow(icon: "hammer.fill", title: "Developer Mode", titleColor: .red) {
+                                DeveloperModeView()
                             }
                         }
                     }
-                    .buttonStyle(.plain)
-                }
 
-                if appState.isDeveloperModeActive {
-                    Section("Developer") {
-                        NavigationLink(destination: DeveloperModeView()) {
-                            Label("Developer Mode", systemImage: "hammer.fill")
-                                .foregroundStyle(.red)
-                        }
+                    // Mehr von Emmrich — Familien-Banner (Messing-Konstante)
+                    VStack(alignment: .leading, spacing: 8) {
+                        SunwakeSectionLabel(text: loc("Mehr von Emmrich", "More from Emmrich"))
+                        EmmrichBanner()
                     }
+
+                    versionFooter
+                        .padding(.top, 2)
+
+                    Spacer().frame(height: 20 + MainTabView.tabBarContentHeight)
                 }
+                .padding(.horizontal, 20)
             }
-            .listStyle(.insetGrouped)
+            .sunwakeSkyScreen()
             .sunwakeTabBackground()
-            .tint(appState.accentColor)
-            .toolbar {
-                if appState.isDeveloperModeActive {
-                    ToolbarItem(placement: .topBarLeading) {
-                        DeveloperFeedbackButton(screen: "Settings", feature: "General", element: "Toolbar")
-                    }
-                }
-            }
-            .navigationTitle("Settings")
+            .toolbarVisibility(.hidden, for: .navigationBar)
         }
-        .tint(appState.accentColor)
         .sheet(isPresented: $showDeveloperUnlock) {
             DeveloperUnlockSheet(isPresented: $showDeveloperUnlock)
         }
@@ -155,17 +145,132 @@ struct SettingsView: View {
             PaywallView()
         }
         .confirmationDialog(
-            "Onboarding wiederholen?",
+            loc("Onboarding wiederholen?", "Repeat onboarding?"),
             isPresented: $showResetOnboardingConfirm,
             titleVisibility: .visible
         ) {
-            Button("Onboarding starten", role: .destructive) {
+            Button(loc("Onboarding starten", "Start onboarding"), role: .destructive) {
                 resetOnboarding()
             }
-            Button("Abbrechen", role: .cancel) {}
+            Button(loc("Abbrechen", "Cancel"), role: .cancel) {}
         } message: {
-            Text("Die App startet das Onboarding erneut. Deine Daten bleiben erhalten.")
+            Text(loc("Die App startet das Onboarding erneut. Deine Daten bleiben erhalten.",
+                     "The app will run onboarding again. Your data is kept."))
         }
+    }
+
+    // MARK: — Bausteine
+
+    private var header: some View {
+        HStack(alignment: .top) {
+            Text(loc("Einstellungen", "Settings"))
+                .font(SunwakeTypography.title)
+                .foregroundStyle(Color.sunwakeInk)
+            Spacer()
+            if appState.isDeveloperModeActive {
+                DeveloperFeedbackButton(screen: "Settings", feature: "General", element: "Header")
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func settingsGroup(_ title: String, @ViewBuilder content: () -> some View) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            SunwakeSectionLabel(text: title)
+            VStack(spacing: 0) {
+                content()
+            }
+            .sunwakeCard()
+        }
+    }
+
+    private var divider: some View {
+        Rectangle()
+            .fill(Color.sunwakeHairline)
+            .frame(height: 1)
+            .padding(.leading, 51)
+    }
+
+    private func rowLabel(icon: String, title: String, titleColor: Color = .sunwakeInk) -> some View {
+        HStack(spacing: 12) {
+            SunwakeIconTile(systemImage: icon)
+            Text(title)
+                .font(SunwakeTypography.listTitle)
+                .foregroundStyle(titleColor)
+        }
+    }
+
+    @ViewBuilder
+    private func navRow(icon: String, title: String, titleColor: Color = .sunwakeInk, @ViewBuilder destination: () -> some View) -> some View {
+        NavigationLink {
+            destination()
+        } label: {
+            HStack {
+                rowLabel(icon: icon, title: title, titleColor: titleColor)
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Color.sunwakeInkTertiary)
+            }
+            .padding(.horizontal, 13)
+            .padding(.vertical, 11)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    @ViewBuilder
+    private func row(icon: String, title: String, titleColor: Color = .sunwakeInk, @ViewBuilder accessory: () -> some View) -> some View {
+        HStack {
+            rowLabel(icon: icon, title: title, titleColor: titleColor)
+            Spacer()
+            accessory()
+        }
+        .padding(.horizontal, 13)
+        .padding(.vertical, 9)
+    }
+
+    @ViewBuilder
+    private func buttonRow(icon: String, title: String, detail: String? = nil, titleColor: Color = .sunwakeInk, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack {
+                rowLabel(icon: icon, title: title, titleColor: titleColor)
+                Spacer()
+                if let detail {
+                    Text(detail)
+                        .font(SunwakeTypography.caption)
+                        .foregroundStyle(Color.sunwakeInkSecondary)
+                }
+            }
+            .padding(.horizontal, 13)
+            .padding(.vertical, 11)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var versionFooter: some View {
+        Button {
+            handleVersionTap()
+        } label: {
+            HStack(spacing: 6) {
+                Spacer()
+                Text("Sunwake \(appVersion) (\(buildNumber))")
+                    .font(SunwakeTypography.caption2)
+                    .foregroundStyle(Color.sunwakeInkTertiary)
+                if appState.isDeveloperModeActive {
+                    Text("DEV")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(RoundedRectangle(cornerRadius: 6).fill(Color.red))
+                }
+                Spacer()
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 
     /// Picks the German or English string based on the app language.
@@ -186,32 +291,6 @@ struct SettingsView: View {
             versionTapCount = 0
             showDeveloperUnlock = true
         }
-    }
-}
-
-// MARK: — Theme Picker Row
-
-struct ThemePickerRow: View {
-    @ObservedObject var themeManager: ThemeManager
-    @EnvironmentObject private var appState: AppState
-
-    var body: some View {
-        HStack {
-            Label(loc("Design", "Theme"), systemImage: "paintbrush")
-            Spacer()
-            Picker(loc("Design", "Theme"), selection: $themeManager.currentTheme) {
-                ForEach(AppTheme.allCases, id: \.self) { theme in
-                    Text(theme.displayName(language: appState.selectedLanguage)).tag(theme)
-                }
-            }
-            .pickerStyle(.segmented)
-            .frame(maxWidth: 180)
-        }
-    }
-
-    /// Picks the German or English string based on the app language.
-    private func loc(_ de: String, _ en: String) -> String {
-        appState.selectedLanguage == "de" ? de : en
     }
 }
 
@@ -240,8 +319,8 @@ struct CalendarSettingsView: View {
             // Connected providers
             Section {
                 CalendarProviderButton(name: "Apple Calendar", icon: "applelogo", color: .primary, isLoading: false) {}
-                CalendarProviderButton(name: "Google Calendar", icon: "globe", color: .blue, isLoading: false, badge: loc("Bald verfügbar", "Coming soon")) {}
-                CalendarProviderButton(name: "Outlook", icon: "envelope.fill", color: .blue, isLoading: false, badge: loc("Bald verfügbar", "Coming soon")) {}
+                CalendarProviderButton(name: "Google Calendar", icon: "globe", color: .sunwakeInkSecondary, isLoading: false, badge: loc("Bald verfügbar", "Coming soon")) {}
+                CalendarProviderButton(name: "Outlook", icon: "envelope.fill", color: .sunwakeInkSecondary, isLoading: false, badge: loc("Bald verfügbar", "Coming soon")) {}
             } header: {
                 Text(loc("Verbundene Anbieter", "Connected providers"))
             } footer: {
@@ -275,6 +354,7 @@ struct CalendarSettingsView: View {
                                     }
                                 ))
                                 .labelsHidden()
+                                .tint(Color.sunwakeAccent)
                             }
                         }
                     } header: {
@@ -288,6 +368,7 @@ struct CalendarSettingsView: View {
         }
         .navigationTitle(loc("Kalender", "Calendar"))
         .listStyle(.insetGrouped)
+        .sunwakePaperScreen()
         .onAppear {
             excludedIDs = BriefingExclusionStore.excludedIDs
         }
@@ -309,15 +390,15 @@ struct AboutView: View {
         List {
             Section {
                 HStack {
-                    Image(systemName: "sun.horizon.fill")
-                        .font(.largeTitle)
-                        .foregroundStyle(.orange)
+                    SunArcMotif()
+                        .scaleEffect(0.7)
+                        .frame(width: 64, height: 44)
                     VStack(alignment: .leading) {
                         Text("Sunwake")
-                            .font(SunwakeTypography.title3.weight(.bold))
+                            .font(SunwakeTypography.title3)
                         Text(loc("Dein Morgen-Briefing", "Your morning briefing"))
                             .font(SunwakeTypography.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Color.sunwakeInkSecondary)
                     }
                 }
                 .padding(.vertical, 8)
@@ -330,6 +411,7 @@ struct AboutView: View {
         }
         .navigationTitle(loc("Über", "About"))
         .listStyle(.insetGrouped)
+        .sunwakePaperScreen()
     }
 
     /// Picks the German or English string based on the app language.
@@ -352,6 +434,7 @@ struct PrivacyView: View {
         }
         .navigationTitle(loc("Datenschutz", "Privacy"))
         .listStyle(.insetGrouped)
+        .sunwakePaperScreen()
     }
 
     /// Picks the German or English string based on the app language.

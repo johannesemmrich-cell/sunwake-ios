@@ -247,6 +247,7 @@ struct DeveloperModeView: View {
         }
         .navigationTitle("Developer Mode")
         .listStyle(.insetGrouped)
+        .sunwakePaperScreen()
         .toolbar {
             if !feedbackEntries.isEmpty || !todoItems.isEmpty {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -287,7 +288,7 @@ private struct FeedbackFilterChip: View {
                 .padding(.vertical, 5)
                 .background(
                     Capsule()
-                        .fill(isSelected ? color.opacity(0.15) : Color(uiColor: .secondarySystemBackground))
+                        .fill(isSelected ? color.opacity(0.15) : Color.sunwakeWell)
                         .overlay(Capsule().strokeBorder(isSelected ? color.opacity(0.4) : Color.clear, lineWidth: 1))
                 )
                 .foregroundStyle(isSelected ? color : .secondary)

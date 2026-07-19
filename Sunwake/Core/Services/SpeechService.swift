@@ -21,7 +21,7 @@ final class SpeechService: NSObject, ObservableObject {
     private var utteranceProgressBase: [ObjectIdentifier: (offset: Int, total: Int)] = [:]
     private var lastProgressUpdate: Double = -1
     private let liveActivityService = LiveActivityService()
-    private var currentAccentColorHex: String = "FF9500"
+    private var currentAccentColorHex: String = SunwakeConstants.liveActivityAccentHex
 
     override init() {
         super.init()
@@ -30,7 +30,7 @@ final class SpeechService: NSObject, ObservableObject {
         setupRemoteCommandCenter()
     }
 
-    func speak(_ items: [SpeechItem], accentColorHex: String = "FF9500") {
+    func speak(_ items: [SpeechItem], accentColorHex: String = SunwakeConstants.liveActivityAccentHex) {
         guard !items.isEmpty else { return }
         currentAccentColorHex = accentColorHex
         queue = items

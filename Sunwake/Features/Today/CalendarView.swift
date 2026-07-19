@@ -19,15 +19,26 @@ struct SunwakeCalendarView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                WeekStripView(selectedDate: $viewModel.selectedDate)
-                    .background(Color(uiColor: .systemBackground))
-                    .shadow(color: .black.opacity(0.05), radius: 6, y: 3)
+                calendarHeader
+                    .padding(.horizontal, 20)
+                    .padding(.top, 8)
+                    .padding(.bottom, 10)
+
+                WeekStripView(
+                    selectedDate: $viewModel.selectedDate,
+                    eventDays: viewModel.eventDays,
+                    onVisibleRangeChange: { start, end in
+                        Task { await viewModel.loadEventDays(from: start, to: end) }
+                    }
+                )
+                .padding(.horizontal, 20)
+                .padding(.bottom, 8)
 
                 if !viewModel.availableCalendars.isEmpty {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 6) {
                             // Provider filter
-                            CalendarFilterPill(title: loc("Alle", "All"), color: .accentColor,
+                            CalendarFilterPill(title: loc("Alle", "All"), color: .sunwakeAccent,
                                 isSelected: viewModel.selectedProvider == nil && viewModel.selectedCalendarIDs.isEmpty) {
                                 withAnimation(.spring(duration: 0.2)) {
                                     viewModel.selectedProvider = nil
@@ -66,47 +77,23 @@ struct SunwakeCalendarView: View {
                         .padding(.horizontal, 16)
                         .padding(.vertical, 8)
                     }
-                    .background(Color(uiColor: .systemBackground))
                 }
-
-                Divider()
 
                 Group {
                     if viewModel.isLoading {
                         Spacer()
                         ProgressView()
+                            .tint(Color.sunwakeAccent)
                         Spacer()
-                    } else if viewModel.filteredEvents.isEmpty {
-                        emptyState
                     } else {
-                        eventList
+                        dayContent
                     }
                 }
                 .animation(.easeInOut(duration: 0.18), value: viewModel.filteredEvents.map(\.id))
             }
+            .sunwakeSkyScreen()
             .sunwakeTabBackground()
-            .navigationTitle(loc("Kalender", "Calendar"))
-            .navigationBarTitleDisplayMode(.large)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    HStack(spacing: 4) {
-                        Button {
-                            showAddEvent = true
-                        } label: {
-                            Image(systemName: "plus")
-                        }
-                        Button(loc("Heute", "Today")) {
-                            withAnimation(.spring(duration: 0.3)) { viewModel.selectedDate = Date() }
-                        }
-                        .disabled(viewModel.selectedDate.isToday)
-                    }
-                }
-                if appState.isDeveloperModeActive {
-                    ToolbarItem(placement: .topBarLeading) {
-                        DeveloperFeedbackButton(screen: "Calendar", feature: "Calendar View", element: "Navigation")
-                    }
-                }
-            }
+            .toolbarVisibility(.hidden, for: .navigationBar)
             .task { await viewModel.setup() }
             .onChange(of: viewModel.selectedDate) { Task { await viewModel.fetchEvents() } }
             .onChange(of: viewModel.selectedCalendarIDs) { Task { await viewModel.fetchEvents() } }
@@ -122,144 +109,229 @@ struct SunwakeCalendarView: View {
         }
     }
 
-    private var eventCountText: String {
-        let count = viewModel.filteredEvents.count
-        return appState.selectedLanguage == "de"
-            ? "\(count) Termin\(count == 1 ? "" : "e")"
-            : "\(count) event\(count == 1 ? "" : "s")"
+    // Header (V3): Eyebrow-Kontextzeile + Titel, rechts + und „Heute".
+    private var calendarHeader: some View {
+        HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: 3) {
+                SunwakeEyebrow(text: loc("Diese Woche", "This week"), color: .sunwakeAccentDeep)
+                Text(loc("Kalender", "Calendar"))
+                    .font(SunwakeTypography.title)
+                    .foregroundStyle(Color.sunwakeInk)
+            }
+            Spacer()
+            HStack(spacing: 8) {
+                if appState.isDeveloperModeActive {
+                    DeveloperFeedbackButton(screen: "Calendar", feature: "Calendar View", element: "Header")
+                }
+                if !viewModel.selectedDate.isToday {
+                    Button {
+                        withAnimation(.spring(duration: 0.3)) { viewModel.selectedDate = Date() }
+                    } label: {
+                        SunwakeChipLabel(text: loc("Heute", "Today"))
+                    }
+                    .buttonStyle(.plain)
+                }
+                SunwakeRoundIconButton(systemImage: "plus") {
+                    showAddEvent = true
+                }
+            }
+            .padding(.top, 4)
+        }
     }
 
-    private var eventList: some View {
+    /// Sektionstitel immer mit Zähler: „Heute · 2 Termine" / „Dienstag, 21. Juli · 1 Termin".
+    private var daySectionTitle: String {
+        let count = viewModel.filteredEvents.count
+        let countText = appState.selectedLanguage == "de"
+            ? "\(count) Termin\(count == 1 ? "" : "e")"
+            : "\(count) event\(count == 1 ? "" : "s")"
+        let dayText = viewModel.selectedDate.isToday
+            ? loc("Heute", "Today")
+            : viewModel.selectedDate.formatted(.dateTime.weekday(.wide).day().month(.wide))
+        return "\(dayText) · \(countText)"
+    }
+
+    /// Tagesinhalt wie im Rundgang: Sektion des gewählten Tags (Liste oder
+    /// Bogen-Leerzustand) — und wenn „Heute" gewählt ist, darunter die
+    /// Vorschau des nächsten Tags mit Terminen.
+    private var dayContent: some View {
         ScrollView {
             LazyVStack(spacing: 0) {
-                // Day header
-                HStack(alignment: .bottom) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(viewModel.selectedDate, format: .dateTime.weekday(.wide).day().month(.wide))
-                            .font(SunwakeTypography.headline)
-                        Text(eventCountText)
-                            .font(SunwakeTypography.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                }
-                .padding(.horizontal, 16)
-                .padding(.top, 16)
-                .padding(.bottom, 10)
+                SunwakeSectionLabel(text: daySectionTitle)
+                    .padding(.horizontal, 20)
+                    .padding(.top, 12)
+                    .padding(.bottom, 8)
 
-                VStack(spacing: 6) {
-                    ForEach(viewModel.filteredEvents) { event in
-                        AgendaEventRow(event: event, language: appState.selectedLanguage) {
-                            selectedEvent = event
+                if viewModel.filteredEvents.isEmpty {
+                    if viewModel.selectedDate.isToday {
+                        SunwakeEmptyState(language: appState.selectedLanguage)
+                            .padding(.top, 10)
+                    } else {
+                        VStack(spacing: 12) {
+                            SunArcMotif()
+                            Text(loc("Keine Termine", "No events"))
+                                .font(SunwakeTypography.headline)
+                                .foregroundStyle(Color.sunwakeInk)
+                                .padding(.top, 4)
+                            Text(loc("An diesem Tag sind keine Termine.", "No events scheduled for this day."))
+                                .font(SunwakeTypography.caption)
+                                .foregroundStyle(Color.sunwakeInkSecondary)
+                                .multilineTextAlignment(.center)
                         }
-                        .padding(.horizontal, 16)
-                        .developerFeedbackOverlay(
-                            isActive: appState.isDeveloperModeActive,
-                            screen: "Calendar",
-                            feature: "Events",
-                            element: "Event: \(event.title)"
-                        )
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 26)
                     }
+                } else {
+                    eventCards(viewModel.filteredEvents)
                 }
-                .padding(.bottom, 24)
+
+                nextDaySection
+
+                Spacer().frame(height: 24 + MainTabView.tabBarContentHeight)
             }
         }
     }
 
-    private var emptyState: some View {
-        VStack(spacing: 14) {
-            Spacer()
-            Image(systemName: viewModel.selectedDate.isToday ? "sun.max.fill" : "calendar.badge.clock")
-                .font(.system(size: 48, weight: .light))
-                .foregroundStyle(Color.accentColor.opacity(0.35))
-            Text(viewModel.selectedDate.isToday ? loc("Freier Tag", "Clear day") : loc("Keine Termine", "No events"))
-                .font(SunwakeTypography.title3.weight(.semibold))
-            Text(viewModel.selectedDate.isToday
-                 ? loc("Heute sind keine Termine eingetragen.", "No events scheduled for today.")
-                 : loc("An diesem Tag sind keine Termine.", "No events scheduled for this day."))
-                .font(SunwakeTypography.body)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 40)
-            Spacer()
+    @ViewBuilder
+    private var nextDaySection: some View {
+        if viewModel.selectedDate.isToday,
+           let preview = viewModel.nextDayPreview {
+            let previewEvents = viewModel.applyFilters(preview.events)
+            if !previewEvents.isEmpty {
+                SunwakeSectionLabel(text: preview.date.formatted(.dateTime.weekday(.wide).day().month(.wide)))
+                    .padding(.horizontal, 20)
+                    .padding(.top, 18)
+                    .padding(.bottom, 8)
+
+                eventCards(previewEvents)
+            }
+        }
+    }
+
+    private func eventCards(_ events: [CalendarEvent]) -> some View {
+        VStack(spacing: 8) {
+            ForEach(events) { event in
+                AgendaEventRow(event: event, language: appState.selectedLanguage) {
+                    selectedEvent = event
+                }
+                .padding(.horizontal, 20)
+                .developerFeedbackOverlay(
+                    isActive: appState.isDeveloperModeActive,
+                    screen: "Calendar",
+                    feature: "Events",
+                    element: "Event: \(event.title)"
+                )
+            }
         }
     }
 }
 
-// MARK: — Week Strip
+// MARK: — Week Strip (Karte mit 2 Wochen, Termin-Punkten und Monatskopf)
 
 struct WeekStripView: View {
     @Binding var selectedDate: Date
+    var eventDays: Set<Date> = []
+    var onVisibleRangeChange: ((Date, Date) -> Void)? = nil
+
     @State private var weekOffset: Int = 0
 
-    private var weekDays: [Date] {
+    private func week(at offset: Int) -> [Date] {
         let cal = Calendar.current
         let today = cal.startOfDay(for: Date())
-        let base = cal.date(byAdding: .weekOfYear, value: weekOffset, to: today)!
+        let base = cal.date(byAdding: .weekOfYear, value: offset, to: today)!
         let monday = cal.date(from: cal.dateComponents([.yearForWeekOfYear, .weekOfYear], from: base))!
         return (0..<7).compactMap { cal.date(byAdding: .day, value: $0, to: monday) }
     }
 
+    private var firstWeek: [Date] { week(at: weekOffset) }
+    private var secondWeek: [Date] { week(at: weekOffset + 1) }
+
     private var monthLabel: String {
-        guard let first = weekDays.first, let last = weekDays.last else { return "" }
+        guard let first = firstWeek.first, let last = secondWeek.last else { return "" }
         let cal = Calendar.current
-        let firstMonth = cal.component(.month, from: first)
-        let lastMonth = cal.component(.month, from: last)
-        if firstMonth == lastMonth {
+        if cal.component(.month, from: first) == cal.component(.month, from: last) {
             return first.formatted(.dateTime.month(.wide).year())
         }
         return "\(first.formatted(.dateTime.month(.abbreviated))) / \(last.formatted(.dateTime.month(.abbreviated).year()))"
     }
 
     var body: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: 8) {
             HStack {
-                Button { withAnimation(.spring(duration: 0.25)) { weekOffset -= 1 } } label: {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(.secondary)
-                        .frame(width: 36, height: 36)
-                        .background(Circle().fill(Color(uiColor: .secondarySystemBackground)))
-                }
-
-                Spacer()
-
                 Text(monthLabel)
-                    .font(SunwakeTypography.caption.weight(.semibold))
-                    .foregroundStyle(.primary)
+                    .font(SunwakeFont.display(17, .semibold, relativeTo: .headline))
+                    .foregroundStyle(Color.sunwakeInk)
                     .animation(.easeInOut(duration: 0.2), value: monthLabel)
 
                 Spacer()
 
-                Button { withAnimation(.spring(duration: 0.25)) { weekOffset += 1 } } label: {
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(.secondary)
-                        .frame(width: 36, height: 36)
-                        .background(Circle().fill(Color(uiColor: .secondarySystemBackground)))
+                HStack(spacing: 2) {
+                    chevron("chevron.left") { shiftWeeks(-1) }
+                    chevron("chevron.right") { shiftWeeks(1) }
                 }
             }
-            .padding(.horizontal, 16)
 
+            // Kopfzeile M D M D F S S
             HStack(spacing: 0) {
-                ForEach(weekDays, id: \.self) { day in
-                    DayButton(
-                        date: day,
-                        isSelected: Calendar.current.isDate(day, inSameDayAs: selectedDate)
-                    ) {
-                        withAnimation(.spring(duration: 0.22)) { selectedDate = day }
-                    }
+                ForEach(firstWeek, id: \.self) { day in
+                    Text(day.formatted(.dateTime.weekday(.narrow)))
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(Color.sunwakeInkTertiary)
+                        .frame(maxWidth: .infinity)
                 }
             }
-            .padding(.horizontal, 8)
+
+            weekRow(firstWeek)
+            weekRow(secondWeek)
         }
-        .padding(.vertical, 10)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .sunwakeCard()
+        .onAppear { notifyRange() }
+    }
+
+    private func chevron(_ name: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: name)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(Color.sunwakeAccent)
+                .frame(width: 30, height: 30)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func shiftWeeks(_ delta: Int) {
+        withAnimation(.spring(duration: 0.25)) { weekOffset += delta }
+        notifyRange()
+    }
+
+    private func notifyRange() {
+        guard let start = firstWeek.first,
+              let lastDay = secondWeek.last,
+              let end = Calendar.current.date(byAdding: .day, value: 1, to: lastDay) else { return }
+        onVisibleRangeChange?(start, end)
+    }
+
+    private func weekRow(_ days: [Date]) -> some View {
+        HStack(spacing: 0) {
+            ForEach(days, id: \.self) { day in
+                DayButton(
+                    date: day,
+                    isSelected: Calendar.current.isDate(day, inSameDayAs: selectedDate),
+                    hasEvents: eventDays.contains(Calendar.current.startOfDay(for: day))
+                ) {
+                    withAnimation(.spring(duration: 0.22)) { selectedDate = day }
+                }
+            }
+        }
     }
 }
 
 struct DayButton: View {
     let date: Date
     let isSelected: Bool
+    var hasEvents: Bool = false
     let action: () -> Void
 
     private var isToday: Bool { date.isToday }
@@ -269,26 +341,27 @@ struct DayButton: View {
             HapticFeedback.selection()
             action()
         } label: {
-            VStack(spacing: 5) {
-                Text(date.formatted(.dateTime.weekday(.narrow)))
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(isSelected ? .white.opacity(0.85) : .secondary)
-
+            VStack(spacing: 2) {
                 ZStack {
                     if isSelected {
-                        Circle()
-                            .fill(Color.accentColor)
-                            .frame(width: 36, height: 36)
+                        RoundedRectangle(cornerRadius: SunwakeRadius.iconTile, style: .continuous)
+                            .fill(Color.sunwakeAccent)
+                            .frame(width: 32, height: 32)
                     } else if isToday {
-                        Circle()
-                            .strokeBorder(Color.accentColor, lineWidth: 1.5)
-                            .frame(width: 36, height: 36)
+                        RoundedRectangle(cornerRadius: SunwakeRadius.iconTile, style: .continuous)
+                            .strokeBorder(Color.sunwakeAccent, lineWidth: 1.5)
+                            .frame(width: 32, height: 32)
                     }
 
                     Text(date.formatted(.dateTime.day()))
-                        .font(.system(size: 16, weight: isSelected || isToday ? .semibold : .regular))
-                        .foregroundStyle(isSelected ? .white : (isToday ? Color.accentColor : .primary))
+                        .font(.system(size: 15, weight: isSelected || isToday ? .semibold : .regular))
+                        .foregroundStyle(isSelected ? Color.sunwakeOnAccent : (isToday ? Color.sunwakeAccent : Color.sunwakeInk))
                 }
+                .frame(height: 32)
+
+                Circle()
+                    .fill(hasEvents && !isSelected ? Color.sunwakeAccent : Color.clear)
+                    .frame(width: 3.5, height: 3.5)
             }
             .frame(maxWidth: .infinity)
             .contentShape(Rectangle())
@@ -317,13 +390,12 @@ struct CalendarFilterPill: View {
                     .lineLimit(1)
             }
             .padding(.horizontal, 11)
-            .padding(.vertical, 5)
+            .padding(.vertical, 6)
             .background(
-                Capsule()
-                    .fill(isSelected ? color.opacity(0.12) : Color(uiColor: .secondarySystemBackground))
-                    .overlay(Capsule().strokeBorder(isSelected ? color.opacity(0.35) : Color.clear, lineWidth: 1))
+                RoundedRectangle(cornerRadius: SunwakeRadius.chip, style: .continuous)
+                    .fill(isSelected ? Color.sunwakeTint : Color.sunwakeWell)
             )
-            .foregroundStyle(isSelected ? color : .secondary)
+            .foregroundStyle(isSelected ? Color.sunwakeAccentDeep : Color.sunwakeInkSecondary)
         }
         .buttonStyle(.plain)
         .animation(.spring(duration: 0.18), value: isSelected)
@@ -346,100 +418,57 @@ struct AgendaEventRow: View {
         return "\(fmt.string(from: event.startDate)) – \(fmt.string(from: event.endDate))"
     }
 
-    private var duration: String {
-        guard !event.isAllDay else { return "" }
-        let mins = Int(event.endDate.timeIntervalSince(event.startDate) / 60)
-        if isDE {
-            if mins < 60 { return "\(mins) Min." }
-            let h = mins / 60, m = mins % 60
-            return m == 0 ? "\(h) Std." : "\(h)h \(m)m"
-        } else {
-            if mins < 60 { return "\(mins) min" }
-            let h = mins / 60, m = mins % 60
-            return m == 0 ? "\(h)h" : "\(h)h \(m)m"
-        }
-    }
-
     private var isNow: Bool {
         guard !event.isAllDay else { return false }
         let now = Date()
         return event.startDate <= now && event.endDate >= now
     }
 
+    // Rundgang-Layout: Farb-Bar, Titel, EINE Meta-Zeile „09:30 – 10:15 · Ort".
+    private var metaLine: String {
+        if let loc = event.location, !loc.isEmpty {
+            return "\(timeString) · \(loc)"
+        }
+        return timeString
+    }
+
     var body: some View {
         Button(action: onTap) {
-            HStack(spacing: 0) {
-                RoundedRectangle(cornerRadius: 3)
+            HStack(spacing: 12) {
+                RoundedRectangle(cornerRadius: 2)
                     .fill(Color(cgColor: event.calendarColor))
-                    .frame(width: 4)
-                    .padding(.vertical, 2)
+                    .frame(width: 3, height: 32)
 
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack(alignment: .top) {
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(event.title)
-                                .font(SunwakeTypography.callout.weight(.semibold))
-                                .foregroundStyle(.primary)
-                                .lineLimit(2)
-                                .multilineTextAlignment(.leading)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(event.title)
+                        .font(SunwakeTypography.listTitle)
+                        .foregroundStyle(Color.sunwakeInk)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
 
-                            HStack(spacing: 10) {
-                                Label(timeString, systemImage: "clock")
-                                    .font(SunwakeTypography.caption)
-                                    .foregroundStyle(.secondary)
-
-                                if !duration.isEmpty {
-                                    Text(duration)
-                                        .font(SunwakeTypography.caption)
-                                        .foregroundStyle(.tertiary)
-                                }
-                            }
-
-                            if let loc = event.location, !loc.isEmpty {
-                                Label(loc, systemImage: "mappin")
-                                    .font(SunwakeTypography.caption)
-                                    .foregroundStyle(.secondary)
-                                    .lineLimit(1)
-                            }
-                        }
-
-                        Spacer(minLength: 8)
-
-                        VStack(alignment: .trailing, spacing: 6) {
-                            if isNow {
-                                Text(isDE ? "Jetzt" : "Now")
-                                    .font(.system(size: 11, weight: .bold))
-                                    .foregroundStyle(.white)
-                                    .padding(.horizontal, 7)
-                                    .padding(.vertical, 3)
-                                    .background(Capsule().fill(Color.green))
-                            }
-
-                            if event.notes != nil && !(event.notes?.isEmpty ?? true) {
-                                Image(systemName: "note.text")
-                                    .font(.caption2)
-                                    .foregroundStyle(.tertiary)
-                            }
-                        }
-                    }
-
-                    HStack(spacing: 4) {
-                        Circle()
-                            .fill(Color(cgColor: event.calendarColor))
-                            .frame(width: 6, height: 6)
-                        Text(event.calendarTitle)
-                            .font(SunwakeTypography.caption2)
-                            .foregroundStyle(.tertiary)
-                    }
+                    Text(metaLine)
+                        .font(SunwakeTypography.caption)
+                        .foregroundStyle(Color.sunwakeInkTertiary)
+                        .lineLimit(1)
                 }
-                .padding(.leading, 12)
-                .padding(.vertical, 12)
-                .padding(.trailing, 14)
+
+                Spacer(minLength: 8)
+
+                if isNow {
+                    Text(isDE ? "Jetzt" : "Now")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(Color.sunwakeAccentDeep)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(
+                            RoundedRectangle(cornerRadius: SunwakeRadius.chip, style: .continuous)
+                                .fill(Color.sunwakeTint)
+                        )
+                }
             }
-            .background(
-                RoundedRectangle(cornerRadius: 14)
-                    .fill(Color(uiColor: .secondarySystemBackground))
-            )
+            .padding(.horizontal, 13)
+            .padding(.vertical, 12)
+            .sunwakeCard()
         }
         .buttonStyle(.plain)
     }
@@ -523,7 +552,7 @@ struct EventDetailSheet: View {
                         metaRow(icon: "calendar", text: event.selectedDate)
                     }
                     .padding(16)
-                    .background(Color(uiColor: .secondarySystemBackground))
+                    .background(Color.sunwakeWell)
                     .clipShape(RoundedRectangle(cornerRadius: 16))
                     .padding(.horizontal, 16)
                     .padding(.top, 16)
@@ -543,10 +572,10 @@ struct EventDetailSheet: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .background(
                             RoundedRectangle(cornerRadius: 14)
-                                .fill(Color.accentColor.opacity(0.06))
+                                .fill(Color.sunwakeAccent.opacity(0.06))
                                 .overlay(
                                     RoundedRectangle(cornerRadius: 14)
-                                        .strokeBorder(Color.accentColor.opacity(0.15), lineWidth: 1)
+                                        .strokeBorder(Color.sunwakeAccent.opacity(0.15), lineWidth: 1)
                                 )
                         )
                         .padding(.horizontal, 16)
@@ -593,8 +622,8 @@ struct EventDetailSheet: View {
                                                 .font(SunwakeTypography.caption2.weight(.medium))
                                                 .padding(.horizontal, 9)
                                                 .padding(.vertical, 4)
-                                                .background(Capsule().fill(Color.accentColor.opacity(0.12)))
-                                                .foregroundStyle(Color.accentColor)
+                                                .background(RoundedRectangle(cornerRadius: SunwakeRadius.chip, style: .continuous).fill(Color.sunwakeTint))
+                                                .foregroundStyle(Color.sunwakeAccentDeep)
                                         }
                                     }
                                 }
@@ -631,7 +660,7 @@ struct EventDetailSheet: View {
                             .padding(14)
                             .background(
                                 RoundedRectangle(cornerRadius: 14)
-                                    .fill(Color(uiColor: .secondarySystemBackground))
+                                    .fill(Color.sunwakeWell)
                             )
                         }
                         .buttonStyle(.plain)
@@ -658,7 +687,7 @@ struct EventDetailSheet: View {
                         .padding(14)
                         .background(
                             RoundedRectangle(cornerRadius: 14)
-                                .fill(Color(uiColor: .secondarySystemBackground).opacity(0.5))
+                                .fill(Color.sunwakeWell.opacity(0.5))
                         )
                         .padding(.horizontal, 16)
                         .padding(.top, 14)
@@ -667,7 +696,7 @@ struct EventDetailSheet: View {
                     Spacer().frame(height: 32)
                 }
             }
-            .background(Color(uiColor: .systemGroupedBackground))
+            .background(Color.sunwakePaper)
             .navigationTitle(loc("Termin", "Event"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -719,7 +748,7 @@ struct EventDetailSheet: View {
                 }
                 .presentationDetents([.medium])
                 .presentationDragIndicator(.visible)
-                .presentationCornerRadius(24)
+                .presentationCornerRadius(SunwakeRadius.sheet)
             }
             .sheet(isPresented: $showAIChat) {
                 EventAIChatSheet(event: event, userNotes: draftNotes, keywords: draftKeywords)
@@ -881,9 +910,8 @@ struct EventAIChatSheet: View {
                             .padding(.horizontal, 10)
                             .padding(.vertical, 5)
                             .background(
-                                Capsule()
+                                RoundedRectangle(cornerRadius: SunwakeRadius.chip, style: .continuous)
                                     .fill(Color(cgColor: event.calendarColor).opacity(0.12))
-                                    .overlay(Capsule().strokeBorder(Color(cgColor: event.calendarColor).opacity(0.3), lineWidth: 1))
                             )
                             .foregroundStyle(Color(cgColor: event.calendarColor))
                     }
@@ -997,6 +1025,12 @@ final class EventChatViewModel: ObservableObject {
 
 // MARK: — ViewModel
 
+/// Nächster Tag mit Terminen (Vorschau unter dem Heute-Block, wie im Rundgang).
+struct UpcomingDayPreview: Equatable {
+    let date: Date
+    let events: [CalendarEvent]
+}
+
 @MainActor
 final class CalendarViewModel: ObservableObject {
     @Published var selectedDate: Date = Date()
@@ -1005,8 +1039,13 @@ final class CalendarViewModel: ObservableObject {
     @Published var selectedCalendarIDs: Set<String> = []
     @Published var selectedProvider: CalendarProvider? = nil
     @Published var isLoading: Bool = false
+    /// Tage (startOfDay) mit mindestens einem Termin — Punkte im Wochen-Grid.
+    @Published var eventDays: Set<Date> = []
+    /// Nächster zukünftiger Tag mit Terminen (bis 14 Tage voraus).
+    @Published var nextDayPreview: UpcomingDayPreview? = nil
 
     private let calendarService = CalendarService()
+    private var dotsRange: (start: Date, end: Date)? = nil
 
     var availableProviders: [CalendarProvider] {
         let providers = Set(availableCalendars.map { $0.provider })
@@ -1020,7 +1059,12 @@ final class CalendarViewModel: ObservableObject {
     }
 
     var filteredEvents: [CalendarEvent] {
-        var result = events
+        applyFilters(events)
+    }
+
+    /// Provider-/Kalender-Pills wirken überall gleich (Tagesliste + Vorschau).
+    func applyFilters(_ input: [CalendarEvent]) -> [CalendarEvent] {
+        var result = input
         if let provider = selectedProvider {
             result = result.filter { event in
                 availableCalendars.first { $0.calendarIdentifier == event.calendarIdentifier }?.provider == provider
@@ -1046,6 +1090,36 @@ final class CalendarViewModel: ObservableObject {
         await calendarService.fetchEvents(for: selectedDate)
         let excluded = BriefingExclusionStore.excludedIDs
         events = calendarService.todayEvents.filter { !excluded.contains($0.calendarIdentifier) }
+        await loadNextDayPreview()
+        if let range = dotsRange {
+            await loadEventDays(from: range.start, to: range.end)
+        }
+    }
+
+    /// Termin-Punkte für den im Wochen-Grid sichtbaren Bereich.
+    func loadEventDays(from start: Date, to end: Date) async {
+        dotsRange = (start, end)
+        let excluded = BriefingExclusionStore.excludedIDs
+        let cal = Calendar.current
+        let rangeEvents = await calendarService.events(from: start, to: end)
+            .filter { !excluded.contains($0.calendarIdentifier) }
+        eventDays = Set(applyFilters(rangeEvents).map { cal.startOfDay(for: $0.startDate) })
+    }
+
+    private func loadNextDayPreview() async {
+        let cal = Calendar.current
+        let tomorrow = cal.date(byAdding: .day, value: 1, to: cal.startOfDay(for: Date()))!
+        let horizon = cal.date(byAdding: .day, value: 14, to: tomorrow)!
+        let excluded = BriefingExclusionStore.excludedIDs
+        let upcoming = await calendarService.events(from: tomorrow, to: horizon)
+            .filter { !excluded.contains($0.calendarIdentifier) }
+
+        let grouped = Dictionary(grouping: upcoming) { cal.startOfDay(for: $0.startDate) }
+        if let firstDay = grouped.keys.sorted().first, let dayEvents = grouped[firstDay] {
+            nextDayPreview = UpcomingDayPreview(date: firstDay, events: dayEvents)
+        } else {
+            nextDayPreview = nil
+        }
     }
 
     func toggleCalendar(_ id: String) {

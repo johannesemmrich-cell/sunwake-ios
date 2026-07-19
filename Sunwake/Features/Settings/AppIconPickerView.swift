@@ -9,15 +9,23 @@ struct AppIconOption: Identifiable {
     let colors: [Color]
 }
 
+// Neue Icon-Familie „Morgendämmerung" (Design-Handoff 19.07.2026, Runde 2m–2r)
+// PLUS die bisherigen Icons — die Auswahl wächst, nichts entfällt.
 private let iconOptions: [AppIconOption] = [
-    AppIconOption(id: "default",   name: nil,                  label: "Sunwake",    symbol: "sun.max.fill",      colors: [Color(hex: 0xFF9500), Color(hex: 0xFF3B30)]),
-    AppIconOption(id: "dawn",      name: "AppIcon-Dawn",       label: "Dawn",     symbol: "sunrise.fill",      colors: [Color(hex: 0xFF2D78), Color(hex: 0xFF9A3C)]),
-    AppIconOption(id: "midnight",  name: "AppIcon-Midnight",   label: "Midnight", symbol: "moon.stars.fill",   colors: [Color(hex: 0x0D1B2A), Color(hex: 0x1A237E)]),
-    AppIconOption(id: "forest",    name: "AppIcon-Forest",     label: "Forest",   symbol: "leaf.fill",         colors: [Color(hex: 0x1B5E20), Color(hex: 0x43A047)]),
-    AppIconOption(id: "ocean",     name: "AppIcon-Ocean",      label: "Ocean",    symbol: "water.waves",       colors: [Color(hex: 0x01579B), Color(hex: 0x039BE5)]),
-    // Neutral icons
-    AppIconOption(id: "slate",     name: "AppIcon-Slate",      label: "Slate",    symbol: "square.fill",       colors: [Color(hex: 0x3A3A3C), Color(hex: 0x1C1C1E)]),
-    AppIconOption(id: "minimal",   name: "AppIcon-Minimal",    label: "Minimal",  symbol: "circle.fill",       colors: [Color(hex: 0xE5E5EA), Color(hex: 0xC7C7CC)]),
+    AppIconOption(id: "default",   name: nil,                  label: "Sunwake",   symbol: "sun.max.fill",       colors: [Color(hex: 0xE89B2E), Color(hex: 0xC0760D)]),
+    AppIconOption(id: "strahlen",  name: "AppIcon-Strahlen",   label: "Strahlen",  symbol: "sun.max",            colors: [Color(hex: 0xE89B2E), Color(hex: 0xC0760D)]),
+    AppIconOption(id: "horizont",  name: "AppIcon-Horizont",   label: "Horizont",  symbol: "sun.horizon.fill",   colors: [Color(hex: 0xE89B2E), Color(hex: 0xC0760D)]),
+    AppIconOption(id: "briefing",  name: "AppIcon-Briefing",   label: "Briefing",  symbol: "text.alignleft",     colors: [Color(hex: 0xE89B2E), Color(hex: 0xC0760D)]),
+    AppIconOption(id: "halo",      name: "AppIcon-Halo",       label: "Halo",      symbol: "circle.circle",      colors: [Color(hex: 0xE89B2E), Color(hex: 0xC0760D)]),
+    AppIconOption(id: "berge",     name: "AppIcon-Berge",      label: "Berge",     symbol: "mountain.2.fill",    colors: [Color(hex: 0xE89B2E), Color(hex: 0xC0760D)]),
+    // Bisherige Icons
+    AppIconOption(id: "classic",   name: "AppIcon-Classic",    label: "Klassik",   symbol: "sun.max.fill",       colors: [Color(hex: 0xFF9500), Color(hex: 0xFF3B30)]),
+    AppIconOption(id: "dawn",      name: "AppIcon-Dawn",       label: "Dawn",      symbol: "sunrise.fill",       colors: [Color(hex: 0xFF2D78), Color(hex: 0xFF9A3C)]),
+    AppIconOption(id: "midnight",  name: "AppIcon-Midnight",   label: "Midnight",  symbol: "moon.stars.fill",    colors: [Color(hex: 0x0D1B2A), Color(hex: 0x1A237E)]),
+    AppIconOption(id: "forest",    name: "AppIcon-Forest",     label: "Forest",    symbol: "leaf.fill",          colors: [Color(hex: 0x1B5E20), Color(hex: 0x43A047)]),
+    AppIconOption(id: "ocean",     name: "AppIcon-Ocean",      label: "Ocean",     symbol: "water.waves",        colors: [Color(hex: 0x01579B), Color(hex: 0x039BE5)]),
+    AppIconOption(id: "slate",     name: "AppIcon-Slate",      label: "Slate",     symbol: "square.fill",        colors: [Color(hex: 0x3A3A3C), Color(hex: 0x1C1C1E)]),
+    AppIconOption(id: "minimal",   name: "AppIcon-Minimal",    label: "Minimal",   symbol: "circle.fill",        colors: [Color(hex: 0xE5E5EA), Color(hex: 0xC7C7CC)]),
 ]
 
 struct AppIconPickerView: View {

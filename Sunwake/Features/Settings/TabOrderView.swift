@@ -29,6 +29,7 @@ struct TabOrderView: View {
         }
         .navigationTitle("Tab-Reihenfolge")
         .listStyle(.insetGrouped)
+        .sunwakePaperScreen()
         .environment(\.editMode, .constant(.active))
     }
 }

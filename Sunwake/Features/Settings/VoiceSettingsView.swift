@@ -91,6 +91,7 @@ struct VoiceSettingsView: View {
             }
         }
         .listStyle(.insetGrouped)
+        .sunwakePaperScreen()
         .navigationTitle(loc("Stimme", "Voice"))
     }
 

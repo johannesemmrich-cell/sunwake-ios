@@ -19,8 +19,16 @@ final class AppState: ObservableObject {
     @Published var briefingStyle: BriefingStyle {
         didSet { UserDefaults.standard.set(briefingStyle.rawValue, forKey: UserDefaultsKey.briefingStyle) }
     }
+    /// Legacy: früher frei wählbare Akzentfarbe. Die Auswahl entfällt ersatzlos
+    /// (Redesign „Goldene Stunde") — gespeicherte Werte werden ignoriert,
+    /// `accentColor` liefert immer den Amber-Token.
     @Published var accentColorHex: String {
         didSet { UserDefaults.standard.set(accentColorHex, forKey: UserDefaultsKey.accentColorHex) }
+    }
+
+    /// Briefing-Banner-Oberfläche (4c): Horizont (Default) oder Dämmerung.
+    @Published var briefingBannerStyle: BriefingBannerStyle {
+        didSet { UserDefaults.standard.set(briefingBannerStyle.rawValue, forKey: UserDefaultsKey.briefingBannerStyle) }
     }
     @Published var topBarActions: [String] {
         didSet { UserDefaults.standard.set(topBarActions, forKey: UserDefaultsKey.topBarActions) }
@@ -30,7 +38,7 @@ final class AppState: ObservableObject {
     /// Premium: user photo shown behind the tab content (nil = default look).
     @Published private(set) var tabBackgroundImage: UIImage?
 
-    var accentColor: Color { Color(hex: accentColorHex) }
+    var accentColor: Color { .sunwakeAccent }
 
     var locale: Locale { Locale(identifier: selectedLanguage) }
 
@@ -57,7 +65,8 @@ final class AppState: ObservableObject {
 
         self.briefingLength = BriefingLength(rawValue: UserDefaults.standard.string(forKey: UserDefaultsKey.briefingLength) ?? "") ?? .medium
         self.briefingStyle = BriefingStyle(rawValue: UserDefaults.standard.string(forKey: UserDefaultsKey.briefingStyle) ?? "") ?? .friendly
-        self.accentColorHex = UserDefaults.standard.string(forKey: UserDefaultsKey.accentColorHex) ?? "FF9500"
+        self.accentColorHex = UserDefaults.standard.string(forKey: UserDefaultsKey.accentColorHex) ?? "C0760D"
+        self.briefingBannerStyle = BriefingBannerStyle(rawValue: UserDefaults.standard.string(forKey: UserDefaultsKey.briefingBannerStyle) ?? "") ?? .horizont
 
         if let filename = UserDefaults.standard.string(forKey: UserDefaultsKey.tabBackgroundFilename) {
             let url = Self.documentsDirectory.appendingPathComponent(filename)
@@ -199,6 +208,7 @@ enum UserDefaultsKey {
     static let selectedVoiceIdentifier = "selectedVoiceIdentifier"
     static let tabBackgroundFilename = "tabBackgroundFilename"
     static let voiceQualityHintDismissed = "voiceQualityHintDismissed"
+    static let briefingBannerStyle = "briefingBannerStyle"
     // Per-day times: "briefingHour_<weekday>" / "briefingMinute_<weekday>"
     static func briefingHourKey(_ weekday: Int) -> String { "briefingHour_\(weekday)" }
     static func briefingMinuteKey(_ weekday: Int) -> String { "briefingMinute_\(weekday)" }

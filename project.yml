@@ -58,12 +58,40 @@ targets:
           - com.johannesemmrich.sunwake.briefing
         NSSupportsLiveActivities: true
         NSSupportsLiveActivitiesFrequentUpdates: true
+        UIAppFonts:
+          - ClashDisplay-Medium.otf
+          - ClashDisplay-Semibold.otf
+          - ClashDisplay-Bold.otf
         CFBundleIcons:
           CFBundlePrimaryIcon:
             CFBundleIconFiles:
               - AppIcon
             UIPrerenderedIcon: false
           CFBundleAlternateIcons:
+            AppIcon-Strahlen:
+              CFBundleIconFiles:
+                - AppIcon-Strahlen
+              UIPrerenderedIcon: false
+            AppIcon-Horizont:
+              CFBundleIconFiles:
+                - AppIcon-Horizont
+              UIPrerenderedIcon: false
+            AppIcon-Briefing:
+              CFBundleIconFiles:
+                - AppIcon-Briefing
+              UIPrerenderedIcon: false
+            AppIcon-Halo:
+              CFBundleIconFiles:
+                - AppIcon-Halo
+              UIPrerenderedIcon: false
+            AppIcon-Berge:
+              CFBundleIconFiles:
+                - AppIcon-Berge
+              UIPrerenderedIcon: false
+            AppIcon-Classic:
+              CFBundleIconFiles:
+                - AppIcon-Classic
+              UIPrerenderedIcon: false
             AppIcon-Dawn:
               CFBundleIconFiles:
                 - AppIcon-Dawn

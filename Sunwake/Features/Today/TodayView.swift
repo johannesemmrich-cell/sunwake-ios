@@ -11,46 +11,48 @@ struct TodayView: View {
 
     @State private var showPaywall = false
     @State private var showCalendar = false
-    @State private var showBriefingDetail = false
     @State private var showChatSheet = false
     @State private var showSettingsSheet = false
     @State private var showLibrarySheet = false
     @State private var selectedEvent: CalendarEvent? = nil
-    @State private var headerOffset: CGFloat = 0
+    @State private var selectedReminder: ReminderItem? = nil
     @State private var showVoiceQualityHint = false
     @State private var showVoiceSettingsSheet = false
+
+    // Briefing-Banner (4a): morpht in situ statt Sheet
+    @Namespace private var briefingNS
+    @State private var briefingExpanded = false
+    @State private var teaserHeight: CGFloat = 96
+    @StateObject private var transformAI = AIService()
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         NavigationStack {
             ZStack(alignment: .bottom) {
                 ScrollView {
                     VStack(spacing: 0) {
-                        TodayHeaderView(
-                            summary: viewModel.aiSummary,
-                            isGenerating: viewModel.isGeneratingAI,
-                            onSummaryTap: { showBriefingDetail = true }
-                        )
-                        .padding(.horizontal, 20)
-                        .padding(.bottom, 28)
+                        headerRow
+                            .padding(.horizontal, 20)
+                            .padding(.top, 8)
+
+                        briefingSection
+                            .padding(.horizontal, 20)
+                            .padding(.top, 14)
 
                         if let weather = viewModel.weather {
-                            WeatherCard(weather: weather, accentColor: appState.accentColor, language: appState.selectedLanguage)
+                            WeatherCard(weather: weather, language: appState.selectedLanguage)
                                 .padding(.horizontal, 20)
-                                .padding(.bottom, 16)
+                                .padding(.top, 12)
                         }
 
-                        if viewModel.events.isEmpty && viewModel.reminders.isEmpty && !viewModel.isLoadingEvents {
-                            EmptyDayView(accentColor: appState.accentColor, language: appState.selectedLanguage)
-                                .padding(.horizontal, 20)
-                        } else {
-                            eventsSection
-                                .padding(.horizontal, 20)
+                        eventsSection
+                            .padding(.horizontal, 20)
+                            .padding(.top, 18)
 
-                            if !viewModel.reminders.isEmpty {
-                                remindersSection
-                                    .padding(.horizontal, 20)
-                                    .padding(.top, 16)
-                            }
+                        if !viewModel.reminders.isEmpty {
+                            remindersSection
+                                .padding(.horizontal, 20)
+                                .padding(.top, 16)
                         }
 
                         TomorrowPreviewCard(
@@ -60,16 +62,16 @@ struct TodayView: View {
                             summary: viewModel.tomorrowSummary,
                             events: viewModel.tomorrowEvents,
                             language: appState.selectedLanguage,
-                            accentColor: appState.accentColor,
                             onUnlock: { showPaywall = true },
                             onLoad: { Task { await viewModel.loadTomorrowPreview() } }
                         )
                         .padding(.horizontal, 20)
                         .padding(.top, 20)
 
-                        Spacer().frame(height: 120)
+                        Spacer().frame(height: 190)
                     }
                 }
+                .scrollDisabled(briefingExpanded)
                 .refreshable {
                     viewModel.language = appState.selectedLanguage
                     viewModel.briefingLength = appState.briefingLength
@@ -77,79 +79,23 @@ struct TodayView: View {
                     await viewModel.refresh()
                 }
 
-                VStack(spacing: 10) {
-                    if showVoiceQualityHint {
-                        VoiceQualityHintBanner(
-                            language: appState.selectedLanguage,
-                            accentColor: appState.accentColor,
-                            onTap: { showVoiceSettingsSheet = true },
-                            onDismiss: {
-                                UserDefaults.standard.set(true, forKey: UserDefaultsKey.voiceQualityHintDismissed)
-                                withAnimation(.easeInOut(duration: 0.2)) { showVoiceQualityHint = false }
-                            }
-                        )
-                    }
-                    PlayBarView(speechService: speechService, aiSummary: viewModel.aiSummary, events: viewModel.events, reminders: viewModel.reminders, weather: viewModel.weather, language: appState.selectedLanguage, accentColor: appState.accentColor, accentColorHex: appState.accentColorHex)
+                bottomBar
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 10 + MainTabView.tabBarContentHeight)
+
+                if briefingExpanded {
+                    briefingOverlay
                 }
-                .padding(.horizontal, 16)
-                .padding(.bottom, 20)
-                .shadow(color: .black.opacity(0.08), radius: 20, y: -4)
             }
+            .sunwakeSkyScreen()
             .sunwakeTabBackground()
-            .navigationTitle("Today")
-            .navigationBarTitleDisplayMode(.large)
-            .toolbar {
-                ToolbarItemGroup(placement: .topBarTrailing) {
-                    ForEach(Array(appState.topBarActions.prefix(2)), id: \.self) { action in
-                        Group {
-                            switch action {
-                            case "calendar":
-                                Button { showCalendar = true } label: { Image(systemName: "calendar") }
-                            case "chat_shortcut":
-                                Button {
-                                    if appState.tabOrder.contains(.chat) {
-                                        appState.selectedTab = .chat
-                                    } else {
-                                        showChatSheet = true
-                                    }
-                                } label: { Image(systemName: "bubble.left.fill") }
-                            case "library":
-                                Button {
-                                    if appState.tabOrder.contains(.library) {
-                                        appState.selectedTab = .library
-                                    } else {
-                                        showLibrarySheet = true
-                                    }
-                                } label: { Image(systemName: "books.vertical.fill") }
-                            case "settings":
-                                Button {
-                                    if appState.tabOrder.contains(.settings) {
-                                        appState.selectedTab = .settings
-                                    } else {
-                                        showSettingsSheet = true
-                                    }
-                                } label: { Image(systemName: "gearshape") }
-                            case "refresh":
-                                Button { Task { await viewModel.refresh() } } label: { Image(systemName: "arrow.clockwise") }
-                                    .disabled(viewModel.isLoadingEvents)
-                            default:
-                                EmptyView()
-                            }
-                        }
-                    }
-                }
-                if appState.isDeveloperModeActive {
-                    ToolbarItem(placement: .topBarLeading) {
-                        DeveloperFeedbackButton(screen: "Today", feature: "Daily Briefing", element: "Toolbar")
-                    }
-                }
-            }
+            .toolbarVisibility(.hidden, for: .navigationBar)
             .sheet(isPresented: $showCalendar) {
                 SunwakeCalendarView()
                     .environmentObject(appState)
             }
-            .sheet(isPresented: $showChatSheet) {
-                NavigationStack { ChatView() }
+            .fullScreenCover(isPresented: $showChatSheet) {
+                ChatView(isPresentedAsCover: true)
                     .environmentObject(appState)
                     .environmentObject(subscriptionManager)
             }
@@ -167,24 +113,8 @@ struct TodayView: View {
                 EventDetailSheet(event: event)
                     .environmentObject(subscriptionManager)
             }
-            .sheet(isPresented: $showBriefingDetail) {
-                NavigationStack {
-                    BriefingDetailView(
-                        fullSummary: viewModel.aiSummary,
-                        events: viewModel.events,
-                        reminders: viewModel.reminders,
-                        weather: viewModel.weather,
-                        language: appState.selectedLanguage,
-                        accentColor: appState.accentColor,
-                        accentColorHex: appState.accentColorHex,
-                        speechService: speechService
-                    )
-                }
-                .presentationDetents([.large])
-                .presentationDragIndicator(.visible)
-                .presentationCornerRadius(28)
-                .environmentObject(subscriptionManager)
-                .environmentObject(appState)
+            .sheet(item: $selectedReminder) { reminder in
+                ReminderDetailSheet(reminder: reminder, accentColor: .sunwakeAccent, language: appState.selectedLanguage)
             }
             .task {
                 viewModel.language = appState.selectedLanguage
@@ -197,7 +127,7 @@ struct TodayView: View {
                 NavigationStack { VoiceSettingsView() }
                     .environmentObject(appState)
                     .environmentObject(speechService)
-                    .tint(appState.accentColor)
+                    .tint(Color.sunwakeAccent)
             }
             .onChange(of: appState.pendingBriefingForChat) { _, pending in
                 guard pending != nil else { return }
@@ -213,25 +143,304 @@ struct TodayView: View {
         }
     }
 
+    // MARK: — Header (V3): Eyebrow-Begrüßung + Datum, rechts Bogen + Aktionen
+
+    private var headerRow: some View {
+        HStack(alignment: .top, spacing: 10) {
+            VStack(alignment: .leading, spacing: 3) {
+                SunwakeEyebrow(
+                    text: BriefingNarrator.timeOfDay(language: appState.selectedLanguage).greeting,
+                    color: .sunwakeAccentDeep
+                )
+                Text(Date(), format: .dateTime.weekday(.wide).day().month(.wide))
+                    .font(SunwakeTypography.hero)
+                    .tracking(-0.3)
+                    .foregroundStyle(Color.sunwakeInk)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.55)
+            }
+
+            Spacer(minLength: 4)
+
+            HStack(spacing: 8) {
+                if appState.isDeveloperModeActive {
+                    DeveloperFeedbackButton(screen: "Today", feature: "Daily Briefing", element: "Header")
+                }
+
+                // Briefing-Bogen (A1): Fortschritt beim Erzeugen/Abspielen,
+                // Tippen = Play/Pause (gleiche Aktion wie die Play-Leiste).
+                Button {
+                    HapticFeedback.impact(.light)
+                    togglePlayback()
+                } label: {
+                    BriefingArcGauge(progress: arcProgress)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(appState.selectedLanguage == "de" ? "Briefing abspielen" : "Play briefing")
+
+                topBarButtons
+            }
+            .padding(.top, 4)
+        }
+    }
+
+    /// nil = Erzeugen läuft (unbestimmt); sonst Wiedergabe-Position bzw. voll.
+    private var arcProgress: Double? {
+        if viewModel.isGeneratingAI { return nil }
+        if speechService.isPlaying || speechService.isPaused { return speechService.progress }
+        return 1.0
+    }
+
+    @ViewBuilder
+    private var topBarButtons: some View {
+        ForEach(Array(appState.topBarActions.prefix(2)), id: \.self) { action in
+            switch action {
+            case "calendar":
+                SunwakeRoundIconButton(systemImage: "calendar") { showCalendar = true }
+            case "chat_shortcut":
+                SunwakeRoundIconButton(systemImage: "bubble.left") { openChat() }
+                    .contextMenu {
+                        Button {
+                            Task { await viewModel.refresh() }
+                        } label: {
+                            Label(appState.selectedLanguage == "de" ? "Aktualisieren" : "Refresh", systemImage: "arrow.clockwise")
+                        }
+                    }
+                    .accessibilityIdentifier("chatShortcutButton")
+            case "library":
+                SunwakeRoundIconButton(systemImage: "books.vertical") {
+                    if appState.tabOrder.contains(.library) {
+                        appState.selectedTab = .library
+                    } else {
+                        showLibrarySheet = true
+                    }
+                }
+            case "settings":
+                SunwakeRoundIconButton(systemImage: "gearshape") {
+                    if appState.tabOrder.contains(.settings) {
+                        appState.selectedTab = .settings
+                    } else {
+                        showSettingsSheet = true
+                    }
+                }
+            case "refresh":
+                SunwakeRoundIconButton(systemImage: "arrow.clockwise") {
+                    Task { await viewModel.refresh() }
+                }
+            default:
+                EmptyView()
+            }
+        }
+    }
+
+    private func openChat() {
+        if appState.tabOrder.contains(.chat) {
+            appState.selectedTab = .chat
+        } else {
+            showChatSheet = true
+        }
+    }
+
+    private func togglePlayback() {
+        if speechService.isPlaying {
+            speechService.pause()
+        } else if speechService.isPaused {
+            speechService.resume()
+        } else {
+            let item = SpeechItem(
+                title: "Briefing",
+                text: spokenText,
+                language: appState.selectedLanguage == "de" ? "de-DE" : "en-US"
+            )
+            speechService.speak([item], accentColorHex: SunwakeConstants.liveActivityAccentHex)
+        }
+    }
+
+    private var spokenText: String {
+        viewModel.aiSummary.isEmpty
+            ? BriefingNarrator.narrative(events: viewModel.events, reminders: viewModel.reminders, weather: viewModel.weather, language: appState.selectedLanguage)
+            : viewModel.aiSummary
+    }
+
+    // MARK: — Briefing-Banner
+
+    @ViewBuilder
+    private var briefingSection: some View {
+        if viewModel.isGeneratingAI && viewModel.aiSummary.isEmpty {
+            HStack(spacing: 8) {
+                ProgressView()
+                    .scaleEffect(0.8)
+                    .tint(Color.sunwakeAccent)
+                Text(appState.selectedLanguage == "de" ? "Briefing wird vorbereitet…" : "Preparing your briefing…")
+                    .font(SunwakeTypography.caption)
+                    .foregroundStyle(Color.sunwakeInkSecondary)
+                Spacer()
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+            .sunwakeCard()
+        } else if !viewModel.aiSummary.isEmpty {
+            if briefingExpanded {
+                Color.clear.frame(height: teaserHeight)
+            } else {
+                teaser
+                    .onGeometryChange(for: CGFloat.self) { proxy in
+                        proxy.size.height
+                    } action: { height in
+                        teaserHeight = height
+                    }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var teaser: some View {
+        let card = BriefingBannerTeaser(
+            summary: viewModel.aiSummary,
+            style: appState.briefingBannerStyle,
+            language: appState.selectedLanguage,
+            onTap: { openBriefing() }
+        )
+        if reduceMotion {
+            card
+        } else {
+            card.matchedGeometryEffect(id: "briefing.card", in: briefingNS)
+        }
+    }
+
+    @ViewBuilder
+    private var briefingOverlay: some View {
+        ZStack(alignment: .top) {
+            Color.sunwakeScrim
+                .ignoresSafeArea()
+                .transition(.opacity)
+                .onTapGesture { closeBriefing() }
+
+            let expanded = BriefingBannerExpanded(
+                summary: viewModel.aiSummary,
+                events: viewModel.events,
+                reminders: viewModel.reminders,
+                style: appState.briefingBannerStyle,
+                language: appState.selectedLanguage,
+                ai: transformAI,
+                speechService: speechService,
+                onClose: { closeBriefing() },
+                onSendToChat: { text in
+                    closeBriefing()
+                    appState.pendingBriefingForChat = text
+                },
+                onOpenEvent: { selectedEvent = $0 },
+                onOpenReminder: { selectedReminder = $0 }
+            )
+            .padding(.horizontal, 20)
+            .padding(.top, 72)
+
+            if reduceMotion {
+                expanded.transition(.opacity)
+            } else {
+                expanded.matchedGeometryEffect(id: "briefing.card", in: briefingNS)
+            }
+        }
+    }
+
+    private func openBriefing() {
+        HapticFeedback.impact(.soft)
+        if reduceMotion {
+            withAnimation(.easeInOut(duration: 0.2)) { briefingExpanded = true }
+        } else {
+            withAnimation(.spring(response: 0.50, dampingFraction: 0.82)) { briefingExpanded = true }
+        }
+    }
+
+    private func closeBriefing() {
+        HapticFeedback.impact(.light)
+        if reduceMotion {
+            withAnimation(.easeInOut(duration: 0.2)) { briefingExpanded = false }
+        } else {
+            withAnimation(.spring(response: 0.40, dampingFraction: 0.86)) { briefingExpanded = false }
+        }
+    }
+
+    // MARK: — Termine (dynamischer Leerzustand V2)
+
     private var eventsSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            if !viewModel.events.isEmpty {
-                SectionHeader(title: "Today's Events", count: viewModel.events.count)
-                    .padding(.bottom, 4)
+            SunwakeSectionLabel(text: sectionTitle(
+                de: "Heute · \(viewModel.events.count) \(viewModel.events.count == 1 ? "Termin" : "Termine")",
+                en: "Today · \(viewModel.events.count) \(viewModel.events.count == 1 ? "event" : "events")"
+            ))
 
+            if viewModel.events.isEmpty && !viewModel.isLoadingEvents {
+                SunwakeEmptyState(language: appState.selectedLanguage)
+            } else {
                 ForEach(viewModel.events) { event in
                     Button { HapticFeedback.selection(); selectedEvent = event } label: {
                         EventCard(event: event, language: appState.selectedLanguage)
                     }
                     .buttonStyle(.plain)
                     .developerFeedbackOverlay(
-                            isActive: appState.isDeveloperModeActive,
-                            screen: "Today",
-                            feature: "Events",
-                            element: "Event: \(event.title)"
-                        )
+                        isActive: appState.isDeveloperModeActive,
+                        screen: "Today",
+                        feature: "Events",
+                        element: "Event: \(event.title)"
+                    )
                 }
             }
+        }
+    }
+
+    private var remindersSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            SunwakeSectionLabel(text: sectionTitle(
+                de: "Erinnerungen · \(viewModel.reminders.count)",
+                en: "Reminders · \(viewModel.reminders.count)"
+            ))
+
+            ForEach(viewModel.reminders) { reminder in
+                ReminderCard(reminder: reminder)
+            }
+        }
+    }
+
+    private func sectionTitle(de: String, en: String) -> String {
+        appState.selectedLanguage == "de" ? de : en
+    }
+
+    // MARK: — Unten: V4-Hinweis + Play-Leiste
+
+    private var bottomBar: some View {
+        VStack(spacing: 6) {
+            if showVoiceQualityHint {
+                VoiceQualityHintBanner(
+                    language: appState.selectedLanguage,
+                    onTap: { showVoiceSettingsSheet = true },
+                    onDismiss: {
+                        UserDefaults.standard.set(true, forKey: UserDefaultsKey.voiceQualityHintDismissed)
+                        withAnimation(.easeInOut(duration: 0.2)) { showVoiceQualityHint = false }
+                    }
+                )
+            }
+            PlayBarView(
+                speechService: speechService,
+                spokenText: spokenText,
+                language: appState.selectedLanguage
+            )
+        }
+        // Weicher Auslauf hinter Hinweis + Play-Leiste, damit darunter
+        // durchscrollender Inhalt die Inline-Zeile (V4) nicht unleserlich macht.
+        .padding(.top, 18)
+        .background {
+            LinearGradient(
+                stops: [
+                    .init(color: .clear, location: 0),
+                    .init(color: Color.sunwakePaper.opacity(0.9), location: 0.35),
+                    .init(color: Color.sunwakePaper, location: 1),
+                ],
+                startPoint: .top, endPoint: .bottom
+            )
+            .padding(.horizontal, -16)
+            .padding(.bottom, -30)
         }
     }
 
@@ -242,113 +451,51 @@ struct TodayView: View {
         let langCode = appState.selectedLanguage == "de" ? "de-DE" : "en-US"
         showVoiceQualityHint = !dismissed && SpeechService.onlyDefaultQualityAvailable(for: langCode)
     }
-
-    private var remindersSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            SectionHeader(title: "Reminders", count: viewModel.reminders.count)
-                .padding(.bottom, 4)
-
-            ForEach(viewModel.reminders) { reminder in
-                ReminderCard(reminder: reminder)
-            }
-        }
-    }
 }
 
-// MARK: — Header
+// MARK: — Wetter (Sonnen-Disc + Clash-Großzahl)
 
-struct TodayHeaderView: View {
-    @EnvironmentObject private var appState: AppState
-    let summary: String
-    let isGenerating: Bool
-    var onSummaryTap: (() -> Void)? = nil
-
-    private var greeting: String {
-        BriefingNarrator.timeOfDay(language: appState.selectedLanguage).greeting
-    }
+struct WeatherCard: View {
+    let weather: WeatherData
+    let language: String
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(greeting)
-                        .font(SunwakeTypography.caption)
-                        .foregroundStyle(.secondary)
-                        .textCase(.uppercase)
-                        .kerning(1)
-                    Text(Date(), format: .dateTime.weekday(.wide).day().month(.wide))
-                        .font(SunwakeTypography.hero)
-                }
-                Spacer()
-                DayProgressRing(accentColor: appState.accentColor)
-            }
+        HStack(spacing: 12) {
+            Circle()
+                .fill(RadialGradient(
+                    colors: [.sunwakeAccentBright, .sunwakeAccent],
+                    center: .init(x: 0.35, y: 0.35), startRadius: 0, endRadius: 14
+                ))
+                .frame(width: 22, height: 22)
 
-            if isGenerating {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(weather.conditionLabel(language: language))
+                    .font(SunwakeTypography.listTitle)
+                    .foregroundStyle(Color.sunwakeInk)
                 HStack(spacing: 8) {
-                    ProgressView()
-                        .scaleEffect(0.8)
-                    Text(appState.selectedLanguage == "de" ? "Briefing wird vorbereitet…" : "Preparing your briefing…")
-                        .font(SunwakeTypography.caption)
-                        .foregroundStyle(.secondary)
-                }
-            } else if !summary.isEmpty {
-                Button {
-                    HapticFeedback.selection()
-                    onSummaryTap?()
-                } label: {
-                    HStack(alignment: .top, spacing: 10) {
-                        Text(summary)
-                            .font(SunwakeTypography.callout)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(3)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                        Image(systemName: "chevron.right")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.tertiary)
-                            .padding(.top, 2)
+                    Text("↑\(Int(weather.temperatureMax.rounded()))°  ↓\(Int(weather.temperatureMin.rounded()))°")
+                    if weather.windSpeed > 0 {
+                        Text("· \(Int(weather.windSpeed.rounded())) km/h")
                     }
-                    .padding(14)
-                    .background(
-                        RoundedRectangle(cornerRadius: 14)
-                            .fill(.ultraThinMaterial)
-                    )
                 }
-                .buttonStyle(.plain)
-                .transition(.opacity.combined(with: .move(edge: .top)))
+                .font(SunwakeTypography.caption)
+                .foregroundStyle(Color.sunwakeInkTertiary)
             }
+
+            Spacer()
+
+            Text("\(Int(weather.temperatureCurrent.rounded()))°")
+                .font(SunwakeTypography.bigNumber)
+                .monospacedDigit()
+                .foregroundStyle(Color.sunwakeInk)
         }
-        .padding(.top, 8)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .sunwakeCard()
     }
 }
 
-struct DayProgressRing: View {
-    let accentColor: Color
-
-    private var progress: Double {
-        let now = Date()
-        let cal = Calendar.current
-        let start = cal.startOfDay(for: now)
-        let end = cal.date(byAdding: .day, value: 1, to: start)!
-        return now.timeIntervalSince(start) / end.timeIntervalSince(start)
-    }
-
-    var body: some View {
-        ZStack {
-            Circle()
-                .stroke(Color.secondary.opacity(0.15), lineWidth: 3)
-            Circle()
-                .trim(from: 0, to: progress)
-                .stroke(accentColor, style: StrokeStyle(lineWidth: 3, lineCap: .round))
-                .rotationEffect(.degrees(-90))
-            Image(systemName: "sun.max.fill")
-                .font(.caption.weight(.medium))
-                .foregroundStyle(.orange)
-        }
-        .frame(width: 44, height: 44)
-    }
-}
-
-// MARK: — Event Card
+// MARK: — Termin-Karte
 
 struct EventCard: View {
     let event: CalendarEvent
@@ -362,54 +509,45 @@ struct EventCard: View {
     }
 
     var body: some View {
-        HStack(spacing: 14) {
-            RoundedRectangle(cornerRadius: 3)
+        HStack(spacing: 12) {
+            RoundedRectangle(cornerRadius: 2)
                 .fill(Color(cgColor: event.calendarColor))
-                .frame(width: 3)
+                .frame(width: 3, height: 30)
 
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 3) {
                 Text(event.title)
-                    .font(SunwakeTypography.callout.weight(.semibold))
+                    .font(SunwakeTypography.listTitle)
+                    .foregroundStyle(Color.sunwakeInk)
                     .lineLimit(2)
 
                 HStack(spacing: 6) {
-                    Image(systemName: "clock")
-                        .font(.caption2)
                     Text(timeString)
-                        .font(SunwakeTypography.caption)
-                }
-                .foregroundStyle(.secondary)
-
-                if let location = event.location, !location.isEmpty {
-                    HStack(spacing: 6) {
-                        Image(systemName: "mappin")
-                            .font(.caption2)
-                        Text(location)
-                            .font(SunwakeTypography.caption)
+                    if let location = event.location, !location.isEmpty {
+                        Text("· \(location)")
                             .lineLimit(1)
                     }
-                    .foregroundStyle(.secondary)
                 }
+                .font(SunwakeTypography.caption)
+                .foregroundStyle(Color.sunwakeInkTertiary)
             }
 
             Spacer()
 
             if isNow {
-                Capsule()
-                    .fill(Color.green.opacity(0.15))
-                    .overlay(
-                        Text("Now")
-                            .font(SunwakeTypography.caption2.weight(.semibold))
-                            .foregroundStyle(.green)
+                Text(language == "de" ? "Jetzt" : "Now")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(Color.sunwakeAccentDeep)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(
+                        RoundedRectangle(cornerRadius: SunwakeRadius.chip, style: .continuous)
+                            .fill(Color.sunwakeTint)
                     )
-                    .frame(width: 44, height: 22)
             }
         }
-        .padding(14)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color(uiColor: .secondarySystemBackground))
-        )
+        .padding(.horizontal, 13)
+        .padding(.vertical, 11)
+        .sunwakeCard()
     }
 
     private var isNow: Bool {
@@ -418,56 +556,96 @@ struct EventCard: View {
     }
 }
 
-// MARK: — Play Bar
+// MARK: — Erinnerungs-Karte
 
-struct PlayBarView: View {
-    @ObservedObject var speechService: SpeechService
-    /// The AI-generated briefing from TodayViewModel; empty while generating
-    /// or when generation is unavailable.
-    let aiSummary: String
-    let events: [CalendarEvent]
-    let reminders: [ReminderItem]
-    let weather: WeatherData?
-    let language: String
-    let accentColor: Color
-    let accentColorHex: String
+struct ReminderCard: View {
+    let reminder: ReminderItem
 
-    /// The exact text that gets spoken: the AI briefing when it exists,
-    /// otherwise the rule-based narrator template.
-    private var spokenText: String {
-        aiSummary.isEmpty
-            ? BriefingNarrator.narrative(events: events, reminders: reminders, weather: weather, language: language)
-            : aiSummary
+    private var timeString: String? {
+        guard let due = reminder.dueDate, !reminder.isDueTomorrow else { return nil }
+        let fmt = DateFormatter()
+        fmt.dateFormat = "HH:mm"
+        return fmt.string(from: due)
     }
 
     var body: some View {
-        HStack(spacing: 16) {
+        HStack(spacing: 11) {
+            Circle()
+                .strokeBorder(Color.sunwakeInkTertiary, lineWidth: 1.6)
+                .frame(width: 20, height: 20)
+
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 4) {
+                    if !reminder.priorityLabel.isEmpty {
+                        Text(reminder.priorityLabel)
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundStyle(Color.sunwakeAccentDeep)
+                    }
+                    Text(reminder.title)
+                        .font(SunwakeTypography.listTitle)
+                        .foregroundStyle(Color.sunwakeInk)
+                        .lineLimit(2)
+                }
+
+                if reminder.isDueTomorrow {
+                    Text("Bis morgen", comment: "Reminder due tomorrow label")
+                        .font(SunwakeTypography.caption)
+                        .foregroundStyle(Color.sunwakeAccentDeep)
+                } else if let time = timeString {
+                    Text(time)
+                        .font(SunwakeTypography.caption)
+                        .foregroundStyle(Color.sunwakeInkTertiary)
+                }
+            }
+
+            Spacer()
+        }
+        .padding(.horizontal, 13)
+        .padding(.vertical, 11)
+        .sunwakeCard()
+    }
+}
+
+// MARK: — Play-Leiste (schwebend, Bogen-Play 5d)
+
+struct PlayBarView: View {
+    @ObservedObject var speechService: SpeechService
+    /// The exact text that gets spoken (AI briefing or narrator fallback).
+    let spokenText: String
+    let language: String
+
+    var body: some View {
+        HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
                 if speechService.isPlaying {
                     Text(speechService.currentItemTitle)
-                        .font(SunwakeTypography.caption.weight(.semibold))
+                        .font(SunwakeTypography.listTitle)
+                        .foregroundStyle(Color.sunwakeInk)
                         .lineLimit(1)
                     ProgressView(value: speechService.progress)
-                        .tint(accentColor)
+                        .tint(Color.sunwakeAccent)
                 } else {
                     Text(language == "de" ? "Briefing abspielen" : "Play briefing")
-                        .font(SunwakeTypography.callout.weight(.semibold))
+                        .font(SunwakeTypography.listTitle)
+                        .foregroundStyle(Color.sunwakeInk)
                     Text(language == "de" ? "Tippe, um deinen Tag zu hören" : "Tap to hear your day read aloud")
                         .font(SunwakeTypography.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.sunwakeInkSecondary)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
-            HStack(spacing: 12) {
+            HStack(spacing: 10) {
                 if speechService.isPlaying || speechService.isPaused {
                     Button {
                         HapticFeedback.impact(.light)
                         speechService.skipBackward()
                     } label: {
                         Image(systemName: "backward.fill")
-                            .font(.body.weight(.medium))
+                            .font(.system(size: 15, weight: .medium))
+                            .foregroundStyle(Color.sunwakeInkSecondary)
                     }
+                    .buttonStyle(.plain)
                 }
 
                 Button {
@@ -482,16 +660,12 @@ struct PlayBarView: View {
                             text: spokenText,
                             language: language == "de" ? "de-DE" : "en-US"
                         )
-                        speechService.speak([item], accentColorHex: accentColorHex)
+                        speechService.speak([item], accentColorHex: SunwakeConstants.liveActivityAccentHex)
                     }
                 } label: {
-                    Image(systemName: speechService.isPlaying ? "pause.fill" : "play.fill")
-                        .font(.title3.weight(.semibold))
-                        .frame(width: 44, height: 44)
-                        .background(accentColor)
-                        .foregroundStyle(.white)
-                        .clipShape(Circle())
+                    SunArcButtonLabel(systemImage: speechService.isPlaying ? "pause.fill" : "play.fill")
                 }
+                .buttonStyle(.plain)
 
                 if speechService.isPlaying || speechService.isPaused {
                     Button {
@@ -499,48 +673,36 @@ struct PlayBarView: View {
                         speechService.skipForward()
                     } label: {
                         Image(systemName: "forward.fill")
-                            .font(.body.weight(.medium))
+                            .font(.system(size: 15, weight: .medium))
+                            .foregroundStyle(Color.sunwakeInkSecondary)
                     }
+                    .buttonStyle(.plain)
                 }
             }
-            .foregroundStyle(.primary)
         }
-        .padding(.horizontal, 18)
-        .padding(.vertical, 14)
-        .background(
-            RoundedRectangle(cornerRadius: 22)
-                .fill(.regularMaterial)
-                .shadow(color: .black.opacity(0.1), radius: 16, y: 4)
-        )
+        .padding(.horizontal, 15)
+        .padding(.vertical, 12)
+        .sunwakeFloating()
     }
 }
 
-// MARK: — Voice quality hint
+// MARK: — Stimme-Hinweis (V4): Inline-Zeile ohne Karte
 
-/// Small banner above the play bar, shown while only the robotic
-/// default-quality system voice is installed. Tapping opens the voice
-/// settings, which explain how to download a natural Enhanced/Premium voice.
 struct VoiceQualityHintBanner: View {
     let language: String
-    let accentColor: Color
     let onTap: () -> Void
     let onDismiss: () -> Void
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 8) {
             Button(action: onTap) {
-                HStack(spacing: 10) {
-                    Image(systemName: "waveform")
-                        .font(.body.weight(.semibold))
-                        .foregroundStyle(accentColor)
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text(language == "de" ? "Natürlichere Stimme verfügbar" : "A more natural voice is available")
-                            .font(SunwakeTypography.caption.weight(.semibold))
-                            .foregroundStyle(.primary)
-                        Text(language == "de" ? "Einmalig kostenlos laden — tippe hier" : "Free one-time download — tap here")
-                            .font(SunwakeTypography.caption2)
-                            .foregroundStyle(.secondary)
-                    }
+                HStack(spacing: 8) {
+                    waveform
+                    Text(language == "de"
+                         ? "Natürlichere Stimme verfügbar — laden"
+                         : "A more natural voice is available — download")
+                        .font(SunwakeTypography.caption)
+                        .foregroundStyle(Color.sunwakeInkSecondary)
                     Spacer(minLength: 0)
                 }
                 .contentShape(Rectangle())
@@ -549,24 +711,27 @@ struct VoiceQualityHintBanner: View {
 
             Button(action: onDismiss) {
                 Image(systemName: "xmark")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 26, height: 26)
-                    .background(Circle().fill(Color.secondary.opacity(0.12)))
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(Color.sunwakeInkTertiary)
+                    .frame(width: 24, height: 24)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(.regularMaterial)
-        )
+        .padding(.horizontal, 8)
         .transition(.opacity.combined(with: .move(edge: .bottom)))
+    }
+
+    private var waveform: some View {
+        HStack(alignment: .center, spacing: 2) {
+            RoundedRectangle(cornerRadius: 1).fill(Color.sunwakeAccent).frame(width: 2.5, height: 8)
+            RoundedRectangle(cornerRadius: 1).fill(Color.sunwakeAccent).frame(width: 2.5, height: 13)
+            RoundedRectangle(cornerRadius: 1).fill(Color.sunwakeAccent).frame(width: 2.5, height: 6)
+        }
     }
 }
 
-// MARK: — Tomorrow preview (Premium)
+// MARK: — Ausblick auf morgen (Premium)
 
 struct TomorrowPreviewCard: View {
     let isPremium: Bool
@@ -575,29 +740,26 @@ struct TomorrowPreviewCard: View {
     let summary: String
     let events: [CalendarEvent]
     let language: String
-    let accentColor: Color
     let onUnlock: () -> Void
     let onLoad: () -> Void
 
     private var isDE: Bool { language == "de" }
 
-    private var tomorrowTitle: String {
-        isDE ? "Ausblick auf morgen" : "Tomorrow's outlook"
-    }
-
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Label(tomorrowTitle, systemImage: "moon.stars.fill")
-                    .font(SunwakeTypography.headline)
+                Label {
+                    Text(isDE ? "Ausblick auf morgen" : "Tomorrow's outlook")
+                        .font(SunwakeTypography.headline)
+                        .foregroundStyle(Color.sunwakeInk)
+                } icon: {
+                    Image(systemName: "moon.stars.fill")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(Color.sunwakeAccent)
+                }
                 Spacer()
                 if !isPremium {
-                    Text("Premium")
-                        .font(SunwakeTypography.caption2.weight(.bold))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 7)
-                        .padding(.vertical, 3)
-                        .background(Capsule().fill(accentColor))
+                    PremiumBadge()
                 }
             }
 
@@ -612,7 +774,7 @@ struct TomorrowPreviewCard: View {
                             .font(SunwakeTypography.caption)
                             .multilineTextAlignment(.leading)
                     }
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.sunwakeInkSecondary)
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -620,24 +782,27 @@ struct TomorrowPreviewCard: View {
                 HStack(spacing: 8) {
                     ProgressView()
                         .scaleEffect(0.8)
+                        .tint(Color.sunwakeAccent)
                     Text(isDE ? "Morgen wird vorbereitet…" : "Preparing tomorrow…")
                         .font(SunwakeTypography.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.sunwakeInkSecondary)
                 }
             } else if hasLoaded {
                 if !summary.isEmpty {
                     Text(summary)
                         .font(SunwakeTypography.callout)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.sunwakeInkSecondary)
+                        .lineSpacing(4)
                 }
                 ForEach(events) { event in
                     HStack(spacing: 10) {
                         Text(timeLabel(for: event))
                             .font(SunwakeTypography.caption.weight(.semibold).monospacedDigit())
-                            .foregroundStyle(accentColor)
+                            .foregroundStyle(Color.sunwakeAccent)
                             .frame(width: 64, alignment: .leading)
                         Text(event.title)
                             .font(SunwakeTypography.caption)
+                            .foregroundStyle(Color.sunwakeInk)
                             .lineLimit(1)
                         Spacer(minLength: 0)
                     }
@@ -645,30 +810,30 @@ struct TomorrowPreviewCard: View {
                 Button(action: onLoad) {
                     Label(isDE ? "Aktualisieren" : "Refresh", systemImage: "arrow.clockwise")
                         .font(SunwakeTypography.caption.weight(.semibold))
-                        .foregroundStyle(accentColor)
+                        .foregroundStyle(Color.sunwakeAccentDeep)
                 }
                 .buttonStyle(.plain)
             } else {
                 Button(action: onLoad) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "sparkles")
-                        Text(isDE ? "Vorschau erstellen" : "Generate preview")
-                            .font(SunwakeTypography.callout.weight(.semibold))
-                    }
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
-                    .background(Capsule().fill(accentColor))
+                    Text(isDE ? "Vorschau erstellen" : "Generate preview")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(Color.sunwakeOnAccent)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 9)
+                        .background {
+                            RoundedRectangle(cornerRadius: SunwakeRadius.control, style: .continuous)
+                                .fill(LinearGradient(
+                                    colors: [.sunwakeAccentBright, .sunwakeAccent],
+                                    startPoint: .top, endPoint: .bottom
+                                ))
+                        }
                 }
                 .buttonStyle(.plain)
             }
         }
-        .padding(16)
+        .padding(15)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color(uiColor: .secondarySystemBackground))
-        )
+        .sunwakeCard()
     }
 
     private func timeLabel(for event: CalendarEvent) -> String {
@@ -676,151 +841,5 @@ struct TomorrowPreviewCard: View {
         let fmt = DateFormatter()
         fmt.dateFormat = "HH:mm"
         return fmt.string(from: event.startDate)
-    }
-}
-
-// MARK: — Empty state
-
-struct EmptyDayView: View {
-    let accentColor: Color
-    let language: String
-
-    var body: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "sparkles")
-                .font(.system(size: 48))
-                .foregroundStyle(accentColor)
-            Text(language == "de" ? "Entspannter Tag" : "Clear day ahead")
-                .font(SunwakeTypography.title3)
-            Text(language == "de" ? "Keine Termine heute. Genieß die freie Zeit." : "No events scheduled for today. Enjoy the open time.")
-                .font(SunwakeTypography.body)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-        }
-        .padding(32)
-    }
-}
-
-struct SectionHeader: View {
-    let title: LocalizedStringKey
-    let count: Int
-
-    var body: some View {
-        HStack {
-            Text(title)
-                .font(SunwakeTypography.headline)
-            Spacer()
-            Text("\(count)")
-                .font(SunwakeTypography.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 3)
-                .background(Capsule().fill(Color.secondary.opacity(0.15)))
-        }
-    }
-}
-
-// MARK: — Weather Card
-
-struct WeatherCard: View {
-    let weather: WeatherData
-    let accentColor: Color
-    let language: String
-
-    var body: some View {
-        HStack(spacing: 14) {
-            Image(systemName: weather.sfSymbol)
-                .font(.title2)
-                .foregroundStyle(accentColor)
-                .frame(width: 36)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(weather.conditionLabel(language: language))
-                    .font(SunwakeTypography.callout.weight(.semibold))
-                HStack(spacing: 8) {
-                    Text("↑\(Int(weather.temperatureMax.rounded()))°")
-                        .font(SunwakeTypography.caption)
-                        .foregroundStyle(.secondary)
-                    Text("↓\(Int(weather.temperatureMin.rounded()))°")
-                        .font(SunwakeTypography.caption)
-                        .foregroundStyle(.secondary)
-                    if weather.windSpeed > 0 {
-                        Text("· \(Int(weather.windSpeed.rounded())) km/h")
-                            .font(SunwakeTypography.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            }
-
-            Spacer()
-
-            Text("\(Int(weather.temperatureCurrent.rounded()))°")
-                .font(.system(size: 32, weight: .light, design: .rounded))
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color(uiColor: .secondarySystemBackground))
-        )
-    }
-}
-
-// MARK: — Reminder Card
-
-struct ReminderCard: View {
-    let reminder: ReminderItem
-
-    private var timeString: String? {
-        guard let due = reminder.dueDate, !reminder.isDueTomorrow else { return nil }
-        let fmt = DateFormatter()
-        fmt.dateFormat = "HH:mm"
-        return fmt.string(from: due)
-    }
-
-    var body: some View {
-        HStack(spacing: 14) {
-            Image(systemName: "circle")
-                .font(.body)
-                .foregroundStyle(.secondary)
-
-            VStack(alignment: .leading, spacing: 3) {
-                HStack(spacing: 4) {
-                    if !reminder.priorityLabel.isEmpty {
-                        Text(reminder.priorityLabel)
-                            .font(SunwakeTypography.caption2.weight(.bold))
-                            .foregroundStyle(.orange)
-                    }
-                    Text(reminder.title)
-                        .font(SunwakeTypography.callout)
-                        .lineLimit(2)
-                }
-
-                if reminder.isDueTomorrow {
-                    HStack(spacing: 4) {
-                        Image(systemName: "exclamationmark.clock")
-                            .font(.caption2)
-                        Text("Bis morgen", comment: "Reminder due tomorrow label")
-                            .font(SunwakeTypography.caption)
-                    }
-                    .foregroundStyle(.orange)
-                } else if let time = timeString {
-                    HStack(spacing: 4) {
-                        Image(systemName: "clock")
-                            .font(.caption2)
-                        Text(time)
-                            .font(SunwakeTypography.caption)
-                    }
-                    .foregroundStyle(.secondary)
-                }
-            }
-
-            Spacer()
-        }
-        .padding(14)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color(uiColor: .secondarySystemBackground))
-        )
     }
 }

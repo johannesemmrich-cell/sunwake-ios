@@ -58,6 +58,7 @@ struct BriefingSettingsView: View {
         }
         .navigationTitle(loc("Briefing-Einstellungen", "Briefing Settings"))
         .listStyle(.insetGrouped)
+        .sunwakePaperScreen()
         .tint(appState.accentColor)
         .toolbar {
             if appState.isDeveloperModeActive {

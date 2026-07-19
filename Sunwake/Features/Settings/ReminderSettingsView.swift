@@ -85,6 +85,7 @@ struct ReminderSettingsView: View {
         }
         .navigationTitle(loc("Erinnerungen", "Reminders"))
         .listStyle(.insetGrouped)
+        .sunwakePaperScreen()
         .task {
             authStatus = EKEventStore.authorizationStatus(for: .reminder)
             if authStatus == .fullAccess {

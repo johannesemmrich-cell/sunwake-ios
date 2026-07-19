@@ -99,6 +99,7 @@ struct BriefingScheduleView: View {
         }
         .navigationTitle(loc("Briefing-Zeitplan", "Briefing schedule"))
         .listStyle(.insetGrouped)
+        .sunwakePaperScreen()
     }
 
     @ViewBuilder

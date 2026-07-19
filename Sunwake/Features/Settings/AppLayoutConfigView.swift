@@ -63,13 +63,12 @@ struct AppLayoutConfigView: View {
         ScrollView {
             VStack(spacing: 28) {
                 phonePreview
-                accentColorSection
                 backgroundImageSection
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 24)
         }
-        .background(Color(uiColor: .systemGroupedBackground))
+        .sunwakePaperScreen()
         .navigationTitle(loc("App-Layout", "App Layout"))
         .tint(appState.accentColor)
         .navigationBarTitleDisplayMode(.large)
@@ -84,11 +83,10 @@ struct AppLayoutConfigView: View {
                 }
             }
         }
-        .confirmationDialog(loc("Design zurücksetzen?", "Reset design?"), isPresented: $showResetConfirmation, titleVisibility: .visible) {
+        .confirmationDialog(loc("Layout zurücksetzen?", "Reset layout?"), isPresented: $showResetConfirmation, titleVisibility: .visible) {
             Button(loc("Auf Standard zurücksetzen", "Reset to default"), role: .destructive) {
                 HapticFeedback.impact(.medium)
                 withAnimation(.spring(duration: 0.3)) {
-                    appState.accentColorHex = "FF9500"
                     appState.topBarActions = ["calendar", "refresh"]
                     appState.tabOrder = AppTab.allCases
                     loadSlots()
@@ -96,7 +94,7 @@ struct AppLayoutConfigView: View {
             }
             Button(loc("Abbrechen", "Cancel"), role: .cancel) {}
         } message: {
-            Text(loc("Akzentfarbe, Tab-Reihenfolge und Toolbar-Aktionen werden auf die Standardwerte zurückgesetzt.", "Accent color, tab order and toolbar actions will be reset to their defaults."))
+            Text(loc("Tab-Reihenfolge und Toolbar-Aktionen werden auf die Standardwerte zurückgesetzt.", "Tab order and toolbar actions will be reset to their defaults."))
         }
         .onAppear { loadSlots() }
         .sheet(item: $editingSlot) { slot in
@@ -120,7 +118,7 @@ struct AppLayoutConfigView: View {
             )
             .presentationDetents([.fraction(0.45)])
             .presentationDragIndicator(.visible)
-            .presentationCornerRadius(24)
+            .presentationCornerRadius(SunwakeRadius.sheet)
         }
         .sheet(item: $editingTopSlot) { slot in
             TopBarPickerSheet(
@@ -135,7 +133,7 @@ struct AppLayoutConfigView: View {
             )
             .presentationDetents([.fraction(0.45)])
             .presentationDragIndicator(.visible)
-            .presentationCornerRadius(24)
+            .presentationCornerRadius(SunwakeRadius.sheet)
         }
     }
 
@@ -157,7 +155,7 @@ struct AppLayoutConfigView: View {
             ZStack(alignment: .bottom) {
                 // Phone frame
                 RoundedRectangle(cornerRadius: 38, style: .continuous)
-                    .fill(Color(uiColor: .secondarySystemBackground))
+                    .fill(Color.sunwakeWell)
                     .frame(width: 200, height: 360)
                     .shadow(color: .black.opacity(0.08), radius: 16, y: 6)
 
@@ -275,15 +273,6 @@ struct AppLayoutConfigView: View {
         .buttonStyle(.plain)
     }
 
-    // MARK: — Accent color
-
-    private var accentColorSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            sectionHeader(loc("Akzentfarbe", "Accent color"), icon: "paintpalette.fill")
-            ColorPaletteGrid(selectedHex: $appState.accentColorHex)
-        }
-    }
-
     // MARK: — Tab background image
 
     private var backgroundImageSection: some View {
@@ -349,7 +338,7 @@ struct AppLayoutConfigView: View {
             .padding(16)
             .background(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(Color(uiColor: .secondarySystemBackground))
+                    .fill(Color.sunwakeWell)
             )
         }
         .onChange(of: backgroundPickerItem) { _, item in
@@ -456,7 +445,7 @@ private struct TabPickerSheet: View {
                         }
                         .padding(.horizontal, 16)
                         .padding(.vertical, 12)
-                        .background(Color(uiColor: .secondarySystemBackground))
+                        .background(Color.sunwakeWell)
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
@@ -467,7 +456,7 @@ private struct TabPickerSheet: View {
 
             Spacer()
         }
-        .background(Color(uiColor: .systemGroupedBackground))
+        .background(Color.sunwakePaper)
     }
 }
 
@@ -511,7 +500,7 @@ private struct TopBarPickerSheet: View {
                         }
                         .padding(.horizontal, 16)
                         .padding(.vertical, 12)
-                        .background(Color(uiColor: .secondarySystemBackground))
+                        .background(Color.sunwakeWell)
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
@@ -521,52 +510,7 @@ private struct TopBarPickerSheet: View {
             .padding(.horizontal, 20)
             Spacer()
         }
-        .background(Color(uiColor: .systemGroupedBackground))
-    }
-}
-
-// MARK: — Color Palette Grid
-
-private struct ColorPaletteGrid: View {
-    @Binding var selectedHex: String
-    @EnvironmentObject private var appState: AppState
-
-    private let columns = Array(repeating: GridItem(.flexible(), spacing: 10), count: 5)
-
-    var body: some View {
-        LazyVGrid(columns: columns, spacing: 10) {
-            ForEach(sunwakeAccentPalette, id: \.hex) { item in
-                let isSelected = selectedHex == item.hex
-                VStack(spacing: 5) {
-                    Circle()
-                        .fill(Color(hex: item.hex))
-                        .frame(width: 48, height: 48)
-                        .shadow(color: Color(hex: item.hex).opacity(0.4), radius: 6, y: 3)
-                        .overlay(
-                            Circle().strokeBorder(isSelected ? Color.primary.opacity(0.4) : Color.clear, lineWidth: 2.5)
-                        )
-                        .overlay(
-                            isSelected ? Image(systemName: "checkmark")
-                                .font(.system(size: 14, weight: .bold))
-                                .foregroundStyle(.white) : nil
-                        )
-                        .animation(.spring(duration: 0.2), value: isSelected)
-
-                    Text(item.label(language: appState.selectedLanguage))
-                        .font(.system(size: 10, weight: isSelected ? .semibold : .regular))
-                        .foregroundStyle(isSelected ? .primary : .secondary)
-                }
-                .onTapGesture {
-                    HapticFeedback.selection()
-                    withAnimation(.spring(duration: 0.2)) { selectedHex = item.hex }
-                }
-            }
-        }
-        .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color(uiColor: .secondarySystemBackground))
-        )
+        .background(Color.sunwakePaper)
     }
 }
 

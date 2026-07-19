@@ -145,7 +145,7 @@ struct PaywallView: View {
             comparisonRow("App-Icons",          free: nil,           premium: "✓")
             comparisonRow("Widget",             free: nil,           premium: "✓")
         }
-        .background(RoundedRectangle(cornerRadius: 16).fill(Color(uiColor: .secondarySystemBackground)))
+        .background(RoundedRectangle(cornerRadius: 16).fill(Color.sunwakeWell))
     }
 
     private func comparisonRow(_ feature: LocalizedStringKey, free: String?, premium: String) -> some View {
@@ -230,7 +230,7 @@ struct ProductPlaceholderRow: View {
             .padding(14)
             .background(
                 RoundedRectangle(cornerRadius: 14)
-                    .fill(isSelected ? appState.accentColor.opacity(0.08) : Color(uiColor: .secondarySystemBackground))
+                    .fill(isSelected ? appState.accentColor.opacity(0.08) : Color.sunwakeWell)
                     .overlay(
                         RoundedRectangle(cornerRadius: 14)
                             .strokeBorder(isSelected ? appState.accentColor : Color.clear, lineWidth: 1.5)
@@ -296,7 +296,7 @@ struct ProductOptionRow: View {
             .padding(14)
             .background(
                 RoundedRectangle(cornerRadius: 14)
-                    .fill(isSelected ? appState.accentColor.opacity(0.08) : Color(uiColor: .secondarySystemBackground))
+                    .fill(isSelected ? appState.accentColor.opacity(0.08) : Color.sunwakeWell)
                     .overlay(
                         RoundedRectangle(cornerRadius: 14)
                             .strokeBorder(isSelected ? appState.accentColor : Color.clear, lineWidth: 1.5)

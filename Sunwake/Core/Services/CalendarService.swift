@@ -289,6 +289,16 @@ final class CalendarService: ObservableObject {
             .map { CalendarEvent(from: $0) }
     }
 
+    /// Events in a date range, returned directly (non-mutating) —
+    /// feeds the week-strip dots and the "next day" preview.
+    func events(from start: Date, to end: Date) async -> [CalendarEvent] {
+        guard EKEventStore.authorizationStatus(for: .event) == .fullAccess else { return [] }
+        let predicate = store.predicateForEvents(withStart: start, end: end, calendars: nil)
+        return store.events(matching: predicate)
+            .sorted { $0.startDate < $1.startDate }
+            .map { CalendarEvent(from: $0) }
+    }
+
     /// Incomplete reminders due on a given day, returned directly.
     func reminders(dueOn date: Date) async -> [ReminderItem] {
         guard EKEventStore.authorizationStatus(for: .reminder) == .fullAccess else { return [] }

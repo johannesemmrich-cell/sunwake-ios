@@ -4,17 +4,31 @@ struct MainTabView: View {
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var subscriptionManager: SubscriptionManager
 
+    private var tabs: [AppTab] { Array(appState.tabOrder.prefix(4)) }
+
+    /// Höhe des Tab-Bar-Inhalts über der Geräte-Safe-Area — als Inset in jedem
+    /// Tab-Kind, weil safeAreaInset auf der TabView nicht zuverlässig in
+    /// NavigationStack-Inhalte propagiert.
+    static let tabBarContentHeight: CGFloat = 62
+
     var body: some View {
+        // Native TabView (State-Erhalt pro Tab) mit versteckter System-Bar;
+        // die V1-Tab-Bar (Custom-Glyphen, Punkt statt Auswahl-Pille) liegt
+        // als einzige Blur-Fläche der App darüber.
         TabView(selection: $appState.selectedTab) {
-            ForEach(appState.tabOrder.prefix(4), id: \.self) { tab in
-                Tab(tab.title, systemImage: tab.icon, value: tab) {
+            ForEach(tabs, id: \.self) { tab in
+                Tab(value: tab) {
                     tabContent(for: tab)
-                        .tint(appState.accentColor)
+                        .toolbarVisibility(.hidden, for: .tabBar)
                 }
             }
         }
-        .onChange(of: appState.selectedTab) {
-            HapticFeedback.selection()
+        .overlay(alignment: .bottom) {
+            SunwakeTabBar(
+                tabs: tabs,
+                selection: $appState.selectedTab,
+                language: appState.selectedLanguage
+            )
         }
         .onChange(of: subscriptionManager.effectivelyPremium) { _, isPremium in
             if isPremium { appState.applyPremiumLayoutMigrationIfNeeded() }
@@ -46,10 +60,13 @@ struct MainTabView: View {
 struct PremiumBadge: View {
     var body: some View {
         Text("Premium")
-            .font(SunwakeTypography.caption2.weight(.bold))
-            .foregroundStyle(.white)
-            .padding(.horizontal, 7)
+            .font(.system(size: 11, weight: .bold))
+            .foregroundStyle(Color.sunwakeAccentDeep)
+            .padding(.horizontal, 8)
             .padding(.vertical, 3)
-            .background(Capsule().fill(Color.sunwakeAccent))
+            .background(
+                RoundedRectangle(cornerRadius: SunwakeRadius.chip, style: .continuous)
+                    .fill(Color.sunwakeTint)
+            )
     }
 }

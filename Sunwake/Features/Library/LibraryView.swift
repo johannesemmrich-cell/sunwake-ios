@@ -16,17 +16,63 @@ struct LibraryView: View {
     @State private var importError: String?
     @State private var showImportError = false
 
+    @State private var editMode: EditMode = .inactive
+    @State private var searchText = ""
+
+    private func loc(_ de: String, _ en: String) -> String {
+        appState.selectedLanguage == "de" ? de : en
+    }
+
+    private var filteredFolders: [PDFFolder] {
+        let query = searchText.trimmingCharacters(in: .whitespaces)
+        guard !query.isEmpty else { return folders }
+        return folders.filter { $0.name.localizedCaseInsensitiveContains(query) }
+    }
+
     var body: some View {
         NavigationStack {
-            Group {
+            VStack(spacing: 0) {
+                header
+                    .padding(.horizontal, 20)
+                    .padding(.top, 8)
+                    .padding(.bottom, 10)
+
+                if !folders.isEmpty {
+                    searchField
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 6)
+                }
+
                 if folders.isEmpty {
                     EmptyLibraryView { showNewFolderSheet = true }
                 } else {
                     List {
-                        ForEach(folders) { folder in
+                        ForEach(filteredFolders) { folder in
                             NavigationLink(destination: FolderDetailView(folder: folder)) {
-                                FolderRow(folder: folder, accentColor: appState.accentColor)
+                                FolderRow(folder: folder, language: appState.selectedLanguage)
                             }
+                            .listRowBackground(
+                                RoundedRectangle(cornerRadius: SunwakeRadius.card, style: .continuous)
+                                    .fill(LinearGradient(
+                                        colors: [.sunwakeCardTop, .sunwakeCardBottom],
+                                        startPoint: .top, endPoint: .bottom
+                                    ))
+                                    .overlay {
+                                        RoundedRectangle(cornerRadius: SunwakeRadius.card, style: .continuous)
+                                            .strokeBorder(
+                                                LinearGradient(
+                                                    stops: [
+                                                        .init(color: .sunwakeEdgeLight, location: 0),
+                                                        .init(color: .clear, location: 0.35),
+                                                    ],
+                                                    startPoint: .top, endPoint: .bottom
+                                                ),
+                                                lineWidth: 1
+                                            )
+                                    }
+                                    .padding(.vertical, 4)
+                            )
+                            .listRowSeparator(.hidden)
                             .developerFeedbackOverlay(
                                 isActive: appState.isDeveloperModeActive,
                                 screen: "Library",
@@ -37,30 +83,16 @@ struct LibraryView: View {
                         .onDelete(perform: deleteFolders)
                         .onMove(perform: moveFolders)
                     }
-                    .listStyle(.insetGrouped)
+                    .listStyle(.plain)
+                    .environment(\.editMode, $editMode)
+                    .scrollContentBackground(.hidden)
+                    .contentMargins(.bottom, MainTabView.tabBarContentHeight + 12, for: .scrollContent)
+                    .padding(.horizontal, 4)
                 }
             }
+            .sunwakeSkyScreen()
             .sunwakeTabBackground()
-            .navigationTitle("Library")
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        showNewFolderSheet = true
-                    } label: {
-                        Image(systemName: "folder.badge.plus")
-                    }
-                }
-                if appState.isDeveloperModeActive {
-                    ToolbarItem(placement: .topBarLeading) {
-                        DeveloperFeedbackButton(screen: "Library", feature: "Folders", element: "Toolbar")
-                    }
-                }
-                if !folders.isEmpty {
-                    ToolbarItem(placement: .topBarLeading) {
-                        EditButton()
-                    }
-                }
-            }
+            .toolbarVisibility(.hidden, for: .navigationBar)
         }
         .sheet(isPresented: $showNewFolderSheet) {
             NewFolderSheet { name in
@@ -98,30 +130,105 @@ struct LibraryView: View {
             folder.sortOrder = index
         }
     }
+
+    // Suchfeld als 3f-Mulde (eingeprägt = Eingabe).
+    private var searchField: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(Color.sunwakeInkTertiary)
+            TextField(loc("Suchen", "Search"), text: $searchText)
+                .font(SunwakeTypography.callout)
+                .foregroundStyle(Color.sunwakeInk)
+                .autocorrectionDisabled()
+            if !searchText.isEmpty {
+                Button {
+                    searchText = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 14))
+                        .foregroundStyle(Color.sunwakeInkTertiary)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 9)
+        .sunwakeWell()
+    }
+
+    // Header (V3): Eyebrow-Kontextzeile + Titel, rechts Bearbeiten/Neu.
+    private var header: some View {
+        HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: 3) {
+                SunwakeEyebrow(text: loc("Deine Dokumente", "Your documents"), color: .sunwakeAccentDeep)
+                Text(loc("Bibliothek", "Library"))
+                    .font(SunwakeTypography.title)
+                    .foregroundStyle(Color.sunwakeInk)
+            }
+            Spacer()
+            HStack(spacing: 8) {
+                if appState.isDeveloperModeActive {
+                    DeveloperFeedbackButton(screen: "Library", feature: "Folders", element: "Header")
+                }
+                if !folders.isEmpty {
+                    SunwakeRoundIconButton(systemImage: editMode == .active ? "checkmark" : "arrow.up.arrow.down") {
+                        withAnimation { editMode = editMode == .active ? .inactive : .active }
+                    }
+                }
+                SunwakeRoundIconButton(systemImage: "folder.badge.plus") {
+                    showNewFolderSheet = true
+                }
+            }
+            .padding(.top, 4)
+        }
+    }
 }
 
-// MARK: — Folder Row
+// MARK: — Folder Row (Mockup: großes Tint-Ordnersymbol, „Zuletzt"-Meta, Zahl rechts)
 
 struct FolderRow: View {
     let folder: PDFFolder
-    let accentColor: Color
+    var language: String = "en"
+
+    private var lastUpload: Date? {
+        folder.documents.map(\.uploadedAt).max()
+    }
 
     var body: some View {
         HStack(spacing: 14) {
             Image(systemName: "folder.fill")
-                .font(.title2)
-                .foregroundStyle(accentColor)
-                .frame(width: 36)
+                .font(.system(size: 30))
+                .foregroundStyle(Color.sunwakeTint)
+                .overlay {
+                    Image(systemName: "folder")
+                        .font(.system(size: 30, weight: .light))
+                        .foregroundStyle(Color.sunwakeAccentDeep.opacity(0.35))
+                }
+                .frame(width: 44)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(folder.name)
-                    .font(SunwakeTypography.callout.weight(.semibold))
-                Text("\(folder.documentCount) document\(folder.documentCount == 1 ? "" : "s")")
-                    .font(SunwakeTypography.caption)
-                    .foregroundStyle(.secondary)
+                    .font(SunwakeTypography.listTitle)
+                    .foregroundStyle(Color.sunwakeInk)
+                if let lastUpload {
+                    Text("\(language == "de" ? "Zuletzt:" : "Last:") \(lastUpload.formatted(.relative(presentation: .named)))")
+                        .font(SunwakeTypography.caption)
+                        .foregroundStyle(Color.sunwakeInkTertiary)
+                } else {
+                    Text(language == "de" ? "Noch keine Dokumente" : "No documents yet")
+                        .font(SunwakeTypography.caption)
+                        .foregroundStyle(Color.sunwakeInkTertiary)
+                }
             }
+
+            Spacer()
+
+            Text("\(folder.documentCount)")
+                .font(SunwakeTypography.caption)
+                .foregroundStyle(Color.sunwakeInkTertiary)
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 10)
     }
 }
 
@@ -164,6 +271,7 @@ struct FolderDetailView: View {
                 .listStyle(.insetGrouped)
             }
         }
+        .sunwakePaperScreen()
         .navigationTitle(folder.name)
         .navigationBarTitleDisplayMode(.large)
         .toolbar {

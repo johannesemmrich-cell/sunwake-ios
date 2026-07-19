@@ -12,6 +12,33 @@
 	<dict>
 		<key>CFBundleAlternateIcons</key>
 		<dict>
+			<key>AppIcon-Berge</key>
+			<dict>
+				<key>CFBundleIconFiles</key>
+				<array>
+					<string>AppIcon-Berge</string>
+				</array>
+				<key>UIPrerenderedIcon</key>
+				<false/>
+			</dict>
+			<key>AppIcon-Briefing</key>
+			<dict>
+				<key>CFBundleIconFiles</key>
+				<array>
+					<string>AppIcon-Briefing</string>
+				</array>
+				<key>UIPrerenderedIcon</key>
+				<false/>
+			</dict>
+			<key>AppIcon-Classic</key>
+			<dict>
+				<key>CFBundleIconFiles</key>
+				<array>
+					<string>AppIcon-Classic</string>
+				</array>
+				<key>UIPrerenderedIcon</key>
+				<false/>
+			</dict>
 			<key>AppIcon-Dawn</key>
 			<dict>
 				<key>CFBundleIconFiles</key>
@@ -26,6 +53,24 @@
 				<key>CFBundleIconFiles</key>
 				<array>
 					<string>AppIcon-Forest</string>
+				</array>
+				<key>UIPrerenderedIcon</key>
+				<false/>
+			</dict>
+			<key>AppIcon-Halo</key>
+			<dict>
+				<key>CFBundleIconFiles</key>
+				<array>
+					<string>AppIcon-Halo</string>
+				</array>
+				<key>UIPrerenderedIcon</key>
+				<false/>
+			</dict>
+			<key>AppIcon-Horizont</key>
+			<dict>
+				<key>CFBundleIconFiles</key>
+				<array>
+					<string>AppIcon-Horizont</string>
 				</array>
 				<key>UIPrerenderedIcon</key>
 				<false/>
@@ -62,6 +107,15 @@
 				<key>CFBundleIconFiles</key>
 				<array>
 					<string>AppIcon-Slate</string>
+				</array>
+				<key>UIPrerenderedIcon</key>
+				<false/>
+			</dict>
+			<key>AppIcon-Strahlen</key>
+			<dict>
+				<key>CFBundleIconFiles</key>
+				<array>
+					<string>AppIcon-Strahlen</string>
 				</array>
 				<key>UIPrerenderedIcon</key>
 				<false/>
@@ -104,6 +158,12 @@
 	<key>NSUserActivityTypes</key>
 	<array>
 		<string>com.johannesemmrich.sunwake.briefing</string>
+	</array>
+	<key>UIAppFonts</key>
+	<array>
+		<string>ClashDisplay-Medium.otf</string>
+		<string>ClashDisplay-Semibold.otf</string>
+		<string>ClashDisplay-Bold.otf</string>
 	</array>
 	<key>UIBackgroundModes</key>
 	<array>

@@ -140,7 +140,7 @@ struct LanguageOption: View {
             .padding(16)
             .background(
                 RoundedRectangle(cornerRadius: 14)
-                    .fill(isSelected ? Color.sunwakeAccent.opacity(0.1) : Color(uiColor: .secondarySystemBackground))
+                    .fill(isSelected ? Color.sunwakeAccent.opacity(0.1) : Color.sunwakeWell)
                     .overlay(
                         RoundedRectangle(cornerRadius: 14)
                             .strokeBorder(isSelected ? Color.sunwakeAccent : Color.clear, lineWidth: 1.5)
@@ -245,7 +245,7 @@ struct CalendarProviderButton: View {
                 }
             }
             .padding(16)
-            .background(RoundedRectangle(cornerRadius: 14).fill(Color(uiColor: .secondarySystemBackground)))
+            .background(RoundedRectangle(cornerRadius: 14).fill(Color.sunwakeWell))
         }
         .buttonStyle(.plain)
         .disabled(badge != nil || isLoading)
@@ -424,7 +424,7 @@ struct PremiumTierCard: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(highlighted ? color.opacity(0.07) : Color(uiColor: .secondarySystemBackground))
+                .fill(highlighted ? color.opacity(0.07) : Color.sunwakeWell)
                 .overlay(
                     RoundedRectangle(cornerRadius: 16)
                         .strokeBorder(highlighted ? color.opacity(0.4) : Color.clear, lineWidth: 1.5)
@@ -502,7 +502,7 @@ struct SunwakeButton: View {
                 .background(
                     style == .primary
                         ? AnyShapeStyle(Color.sunwakeAccent)
-                        : AnyShapeStyle(Color(uiColor: .secondarySystemBackground))
+                        : AnyShapeStyle(Color.sunwakeWell)
                 )
                 .foregroundStyle(style == .primary ? .white : .primary)
                 .clipShape(RoundedRectangle(cornerRadius: 16))
