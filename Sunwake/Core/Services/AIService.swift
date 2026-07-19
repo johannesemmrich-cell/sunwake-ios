@@ -100,7 +100,7 @@ final class AIService: ObservableObject {
         await checkCapability() // availability can change at runtime
         if capabilityStatus == .available, #available(iOS 26.0, *) {
             let prompt = buildTomorrowPrompt(events: events, reminders: reminders, weather: weather, language: language, length: length, style: style)
-            if let result = await runFoundationModelsPrompt(prompt) { return result }
+            if let result = await runFoundationModelsPrompt(prompt, language: language) { return result }
         }
         return buildTomorrowFallback(events: events, reminders: reminders, weather: weather, language: language)
     }
@@ -216,20 +216,32 @@ final class AIService: ObservableObject {
     @available(iOS 26.0, *)
     private func generateWithFoundationModels(events: [CalendarEvent], reminders: [ReminderItem], weather: WeatherData?, pdfTexts: [String], language: String, length: BriefingLength, style: BriefingStyle) async -> String {
         let prompt = buildBriefingPrompt(events: events, reminders: reminders, weather: weather, pdfTexts: pdfTexts, language: language, length: length, style: style)
-        return await runFoundationModelsPrompt(prompt) ?? buildFallbackSummary(events: events, reminders: reminders, weather: weather, language: language)
+        return await runFoundationModelsPrompt(prompt, language: language) ?? buildFallbackSummary(events: events, reminders: reminders, weather: weather, language: language)
     }
 
     @available(iOS 26.0, *)
     private func generateAnswerWithFoundationModels(question: String, context: BriefingContext, language: String) async -> String {
         let prompt = buildChatPrompt(question: question, context: context, language: language)
-        return await runFoundationModelsPrompt(prompt) ?? buildRuleBasedAnswer(question: question, context: context, language: language)
+        return await runFoundationModelsPrompt(prompt, language: language) ?? buildRuleBasedAnswer(question: question, context: context, language: language)
+    }
+
+    /// Persistent system-level guidance (distinct from the per-call prompt text),
+    /// which FoundationModels weighs more heavily than instructions embedded in
+    /// the prompt itself. Used to force correct German grammar: the small
+    /// on-device model otherwise frequently gets noun/adjective gender agreement
+    /// wrong (e.g. "ein interessantes Tag" instead of "ein interessanter Tag")
+    /// when that guidance is just soft-worded inside the prompt.
+    nonisolated private static func sessionInstructions(language: String) -> String {
+        language == "de"
+            ? "Du schreibst ausschließlich in einwandfreiem, grammatikalisch korrektem Deutsch. Achte besonders auf das grammatikalische Geschlecht und die Adjektivendungen (z. B. \"ein interessanter Tag\" [der Tag], \"eine ruhige Woche\" [die Woche], \"ein entspanntes Wochenende\" [das Wochenende], \"der Termin\", \"die Erinnerung\") sowie auf korrekte Kasus-Endungen."
+            : "Write only in natural, grammatically correct English."
     }
 
     /// Single choke point for on-device generation: summaries, chat answers and
     /// transformations all go through here. Returns nil on any failure so the
     /// rule-based fallbacks kick in.
     @available(iOS 26.0, *)
-    private func runFoundationModelsPrompt(_ prompt: String) async -> String? {
+    private func runFoundationModelsPrompt(_ prompt: String, language: String) async -> String? {
         // Re-check availability right before generating — it can change at
         // runtime (e.g. the model just finished downloading).
         let status = Self.detectFoundationModels()
@@ -239,7 +251,7 @@ final class AIService: ObservableObject {
         // Run the session off the main actor so generation never blocks the UI.
         return await Task.detached(priority: .userInitiated) { () async -> String? in
             do {
-                let session = LanguageModelSession(model: Self.generationModel)
+                let session = LanguageModelSession(model: Self.generationModel, instructions: Self.sessionInstructions(language: language))
                 let response = try await session.respond(to: prompt)
                 let cleaned = Self.sanitizeModelOutput(response.content)
                 return cleaned.isEmpty ? nil : cleaned
@@ -280,7 +292,7 @@ final class AIService: ObservableObject {
         await checkCapability() // availability can change at runtime
         if capabilityStatus == .available, #available(iOS 26.0, *) {
             let prompt = buildTransformPrompt(text: text, transformation: transformation, language: language)
-            if let result = await runFoundationModelsPrompt(prompt) { return result }
+            if let result = await runFoundationModelsPrompt(prompt, language: language) { return result }
         }
         return fallbackTransform(text, transformation: transformation)
     }
